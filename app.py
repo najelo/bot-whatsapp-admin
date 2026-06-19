@@ -20,18 +20,29 @@ with st.form("registro", clear_on_submit=True):
     if st.form_submit_button("Guardar"):
         url_imagen = None
         
-        # Subida al Storage
+        # Subida al Storage mejorada
         if archivo:
-            nombre_archivo = f"respuestas/{archivo.name}"
-            # Asegúrate que el bucket se llame 'imagenes-bot'
-            supabase.storage.from_("imagenes-bot").upload(nombre_archivo, archivo.getvalue())
-            url_imagen = supabase.storage.from_("imagenes-bot").get_public_url(nombre_archivo)
+            try:
+                nombre_archivo = f"respuestas/{archivo.name}"
+                # Usamos 'upsert=True' para sobrescribir si el archivo ya existe
+                supabase.storage.from_("imagenes-bot").upload(
+                    path=nombre_archivo, 
+                    file=archivo.getvalue(),
+                    file_options={"upsert": "true"}
+                )
+                url_imagen = supabase.storage.from_("imagenes-bot").get_public_url(nombre_archivo)
+            except Exception as e:
+                st.error(f"Error al subir la imagen: {e}")
+                # Si falla la imagen, decidimos si detener o continuar sin ella
+                st.stop()
         
         # Guardado en la Tabla
-        supabase.table("preguntas_respuestas").insert({
-            "pregunta": pregunta,
-            "respuesta": respuesta,
-            "url_imagen": url_imagen # Debe coincidir con la columna en Supabase
-        }).execute()
-        
-        st.success("Guardado con éxito")
+        try:
+            supabase.table("preguntas_respuestas").insert({
+                "pregunta": pregunta,
+                "respuesta": respuesta,
+                "url_imagen": url_imagen
+            }).execute()
+            st.success("Guardado con éxito")
+        except Exception as e:
+            st.error(f"Error al guardar en la base de datos: {e}")
