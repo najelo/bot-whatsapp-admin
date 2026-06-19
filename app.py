@@ -1,38 +1,37 @@
 import streamlit as st
 from supabase import create_client
 
-# --- CONFIGURACIÓN DE SUPABASE ---
-# Sustituye con tus credenciales reales
-SUPABASE_URL = "https://oxsimejylqyjahlagvzy.supabase.co"
-SUPABASE_KEY = "sb_publishable_O_oQDHdJWqxXaL3UzZHkzw_-F6O6-sA"
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# 1. Configuración de conexión
+try:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    supabase = create_client(url, key)
+except Exception as e:
+    st.error("Error cargando credenciales: " + str(e))
+    st.stop()
 
-st.title("Admin de Respuestas - Bot WhatsApp")
+st.title("Admin de Bot")
 
-# --- INTERFAZ ---
-with st.form("nuevo_registro"):
-    pregunta = st.text_input("Pregunta del cliente:")
-    respuesta = st.text_area("Respuesta del bot:")
+with st.form("registro", clear_on_submit=True):
+    pregunta = st.text_input("Pregunta:")
+    respuesta = st.text_area("Respuesta:")
+    archivo = st.file_uploader("Imagen (opcional):", type=['png', 'jpg'])
     
-    submitted = st.form_submit_button("Guardar en Supabase")
-
-    if submitted:
-        if pregunta and respuesta:
-            try:
-                # Insertar en la tabla 'preguntas_respuestas'
-                data = supabase.table("preguntas_respuestas").insert({
-                    "pregunta": pregunta.lower(), 
-                    "respuesta": respuesta
-                }).execute()
-                
-                st.success("¡Guardado correctamente!")
-            except Exception as e:
-                st.error(f"Error al guardar: {e}")
-        else:
-            st.warning("Por favor, llena ambos campos.")
-
-# --- VISUALIZAR LO QUE YA TIENES ---
-st.subheader("Respuestas actuales")
-if st.button("Actualizar lista"):
-    response = supabase.table("preguntas_respuestas").select("*").execute()
-    st.table(response.data)
+    if st.form_submit_button("Guardar"):
+        url_imagen = None
+        
+        # Subida al Storage
+        if archivo:
+            nombre_archivo = f"respuestas/{archivo.name}"
+            # Asegúrate que el bucket se llame 'imagenes-bot'
+            supabase.storage.from_("imagenes-bot").upload(nombre_archivo, archivo.getvalue())
+            url_imagen = supabase.storage.from_("imagenes-bot").get_public_url(nombre_archivo)
+        
+        # Guardado en la Tabla
+        supabase.table("preguntas_respuestas").insert({
+            "pregunta": pregunta,
+            "respuesta": respuesta,
+            "url_imagen": url_imagen # Debe coincidir con la columna en Supabase
+        }).execute()
+        
+        st.success("Guardado con éxito")
