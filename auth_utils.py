@@ -10,10 +10,10 @@ except ImportError:
     pass  # Si no está instalado o no se necesita, no importa
 
 # 2. Obtener las credenciales
-url = os.environ.get("SUPABASE_URL")
-key = os.environ.get("SUPABASE_KEY")
-
-# 3. Validación de seguridad
+def get_supabase():
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    return create_client(url, key)
 if not url or not key:
     raise Exception("ERROR: Las variables SUPABASE_URL o SUPABASE_KEY no están configuradas.")
 
