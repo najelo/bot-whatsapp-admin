@@ -38,42 +38,37 @@ else:
         st.divider()
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
-        todas_respuestas = obtener_todas_las_respuestas()
         
+        # --- LÓGICA DE AGRUPACIÓN POR PALABRA CLAVE ---
         agrupadas = {}
         for conf in configuraciones:
-            r_id = conf['respuesta_id']
-            if r_id not in agrupadas:
-                agrupadas[r_id] = {"contenido": conf['respuestas']['contenido'], "palabras": [], "ids": []}
-            agrupadas[r_id]["palabras"].append(conf['palabra_clave'])
-            agrupadas[r_id]["ids"].append(conf['id'])
+            palabra = conf['palabra_clave'].strip()
+            if palabra not in agrupadas:
+                agrupadas[palabra] = {"respuestas": [], "ids": []}
+            agrupadas[palabra]["respuestas"].append({
+                "contenido": conf['respuestas']['contenido'],
+                "id_cliente": conf['id']
+            })
+            agrupadas[palabra]["ids"].append(conf['id'])
 
-        for r_id, datos in agrupadas.items():
-            with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
-                nueva_lista = st.text_input("Palabras clave", value=", ".join(datos['palabras']), key=f"inp_{r_id}")
+        for palabra, datos in agrupadas.items():
+            with st.expander(f"Regla: {palabra}"):
+                # Mostrar respuestas actuales vinculadas
+                st.write("**Respuestas vinculadas:**")
+                for item in datos["respuestas"]:
+                    st.text(f"- {item['contenido']}")
                 
+                # Selector para vincular una respuesta adicional
+                todas_respuestas = obtener_todas_las_respuestas()
                 opciones = {r['contenido']: r['id'] for r in todas_respuestas}
-                idx = list(opciones.keys()).index(datos['contenido']) if datos['contenido'] in opciones else 0
-                sel = st.selectbox("Vincular a respuesta:", list(opciones.keys()), index=idx, key=f"sel_{r_id}")
                 
-                # --- NUEVA FUNCIONALIDAD: VINCULAR RESPUESTA EXTRA ---
-                if st.button("➕ Vincular otra respuesta", key=f"add_resp_{r_id}"):
-                    st.session_state[f"vinculando_{r_id}"] = True
+                nueva_sel = st.selectbox("Agregar otra respuesta a esta regla:", list(opciones.keys()), key=f"sel_extra_{palabra}")
                 
-                if st.session_state.get(f"vinculando_{r_id}", False):
-                    extra_sel = st.selectbox("Elige respuesta extra:", list(opciones.keys()), key=f"extra_sel_{r_id}")
-                    if st.button("Confirmar vinculación", key=f"conf_vin_{r_id}"):
-                        for p in nueva_lista.split(','): 
-                            guardar_palabra_individual(p.strip(), opciones[extra_sel])
-                        st.session_state[f"vinculando_{r_id}"] = False
-                        st.rerun()
-
-                col1, col2 = st.columns(2)
-                if col1.button("Actualizar grupo", key=f"btn_upd_{r_id}"):
-                    for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
-                    for p in nueva_lista.split(','): guardar_palabra_individual(p.strip(), opciones[sel])
+                if st.button("Vincular respuesta", key=f"btn_link_{palabra}"):
+                    guardar_palabra_individual(palabra, opciones[nueva_sel])
                     st.rerun()
-                if col2.button("🗑️ Eliminar grupo", key=f"del_grupo_{r_id}"):
+                
+                if st.button("🗑️ Eliminar esta regla completa", key=f"del_{palabra}"):
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
                     st.rerun()
     
