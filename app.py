@@ -1,48 +1,29 @@
 import streamlit as st
 from supabase import create_client
 
-# 1. Configuración de conexión
-try:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    supabase = create_client(url, key)
-except Exception as e:
-    st.error("Error cargando credenciales: " + str(e))
-    st.stop()
+# Configuración
+supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-st.title("Admin de Bot")
+st.title("Admin de Bot: Verificación de Pagos")
 
-with st.form("registro", clear_on_submit=True):
-    pregunta = st.text_input("Pregunta:")
-    respuesta = st.text_area("Respuesta:")
-    archivo = st.file_uploader("Imagen (opcional):", type=['png', 'jpg'])
+with st.form("configuracion_pago", clear_on_submit=False):
+    st.subheader("Datos esperados para el próximo pago")
+    nueva_cedula = st.text_input("Cédula/RIF esperado:")
+    nuevo_telefono = st.text_input("Teléfono esperado (Ej: 04121234567):")
     
-    if st.form_submit_button("Guardar"):
-        url_imagen = None
-        
-        # Subida al Storage mejorada
-        if archivo:
-            try:
-                nombre_archivo = f"respuestas/{archivo.name}"
-                # Usamos 'upsert=True' para sobrescribir si el archivo ya existe
-                supabase.storage.from_("imagenes-bot").upload(
-                    path=nombre_archivo, 
-                    file=archivo.getvalue(),
-                    file_options={"upsert": "true"}
-                )
-                url_imagen = supabase.storage.from_("imagenes-bot").get_public_url(nombre_archivo)
-            except Exception as e:
-                st.error(f"Error al subir la imagen: {e}")
-                # Si falla la imagen, decidimos si detener o continuar sin ella
-                st.stop()
-        
-        # Guardado en la Tabla
+    if st.form_submit_button("Actualizar configuración"):
+        # Desactivamos los anteriores y creamos el nuevo
         try:
-            supabase.table("preguntas_respuestas").insert({
-                "pregunta": pregunta,
-                "respuesta": respuesta,
-                "url_imagen": url_imagen
+            # 1. Ponemos todo en activo = false
+            supabase.table("configuracion_pago").update({"activo": False}).eq("activo", True).execute()
+            
+            # 2. Insertamos el nuevo
+            supabase.table("configuracion_pago").insert({
+                "cedula_esperada": nueva_cedula,
+                "telefono_esperado": nuevo_telefono,
+                "activo": True
             }).execute()
-            st.success("Guardado con éxito")
+            
+            st.success("Configuración actualizada. El bot ya está esperando estos datos.")
         except Exception as e:
-            st.error(f"Error al guardar en la base de datos: {e}")
+            st.error(f"Error al actualizar: {e}")
