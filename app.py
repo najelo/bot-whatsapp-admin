@@ -41,6 +41,7 @@ else:
         configuraciones = obtener_configuraciones()
         todas_respuestas = obtener_todas_las_respuestas()
         
+        # Agrupación para edición masiva
         agrupadas = {}
         for conf in configuraciones:
             r_id = conf['respuesta_id']
@@ -52,16 +53,17 @@ else:
         for r_id, datos in agrupadas.items():
             with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
                 nueva_lista = st.text_input("Palabras clave", value=", ".join(datos['palabras']), key=f"inp_{r_id}")
+                
                 opciones = {r['contenido']: r['id'] for r in todas_respuestas}
                 idx = list(opciones.keys()).index(datos['contenido']) if datos['contenido'] in opciones else 0
                 sel = st.selectbox("Vincular a respuesta:", list(opciones.keys()), index=idx, key=f"sel_{r_id}")
                 
                 col1, col2 = st.columns(2)
-                if col1.button("Actualizar grupo", key=f"btn_{r_id}"):
+                if col1.button("Actualizar grupo", key=f"btn_upd_{r_id}"):
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
                     for p in nueva_lista.split(','): guardar_palabra_individual(p.strip(), opciones[sel])
                     st.rerun()
-                if col2.button("🗑️ Eliminar grupo", key=f"del_{r_id}"):
+                if col2.button("🗑️ Eliminar grupo", key=f"del_grupo_{r_id}"):
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
                     st.rerun()
     
@@ -82,14 +84,12 @@ else:
         for c in contactos:
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
-                estado_texto = "🟢 Activo" if c['activo'] else "⚪ Inactivo"
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
-                col1.caption(f"Estado: {estado_texto}")
                 
                 if c['activo']:
                     col2.success("✅ Activo")
                 else:
-                    if col2.button("Activar", key=f"btn_{c['id']}"):
+                    if col2.button("Activar", key=f"btn_activar_{c['id']}"):
                         activar_contacto(c['id'])
                         st.rerun()
 
