@@ -22,23 +22,24 @@ else:
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
     with tab1:
-        with st.form("nueva_config"):
+        with st.form("nueva_config", clear_on_submit=True):
             c = st.text_input("Palabra clave")
             r = st.text_area("Respuesta automática")
             if st.form_submit_button("Guardar"):
                 exito, msg = guardar_configuracion(c, r)
                 st.success(msg) if exito else st.error(msg)
-        if st.button("Ver configuraciones"):
+        
+        if st.button("Actualizar lista de configuraciones"):
             datos = obtener_configuraciones()
             st.table([{"Palabra": i['palabra_clave'], "Respuesta": i.get('respuestas', {}).get('contenido')} for i in datos])
 
-   with tab2:
+    with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
             ced = col_a.text_input("Cédula Esperada")
             tel = col_b.text_input("Teléfono Esperado")
-            if st.form_submit_button("➕ Registrar nuevo pago"):
+            if st.form_submit_button("➕ Registrar Datos"):
                 guardar_contacto(ced, tel)
                 st.rerun()
 
@@ -46,18 +47,22 @@ else:
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
         
-        # Estilo de tarjeta para cada registro
+        # Estilo de tarjetas para cada registro de pago
         for c in contactos:
-            with st.container(border=True): # Esto crea un borde elegante alrededor
+            with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
                 
-                estado = "🟢 Activo" if c['activo'] else "⚪ Inactivo"
+                estado_texto = "🟢 Activo" if c['activo'] else "⚪ Inactivo"
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
-                col1.caption(f"Estado actual: {estado}")
+                col1.caption(f"Estado: {estado_texto}")
                 
                 if c['activo']:
-                    col2.success("✅ Seleccionado")
+                    col2.success("✅ Activo")
                 else:
                     if col2.button("Activar", key=f"btn_{c['id']}", use_container_width=True):
                         activar_contacto(c['id'])
                         st.rerun()
+
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
