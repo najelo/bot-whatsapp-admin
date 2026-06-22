@@ -8,7 +8,7 @@ def get_supabase():
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
     if not url or not key:
-        raise ValueError("Variables SUPABASE_URL o SUPABASE_KEY no configuradas")
+        raise ValueError("Configura SUPABASE_URL y SUPABASE_KEY en los Secrets")
     return create_client(url, key)
 
 def verificar_login(username, password_input):
