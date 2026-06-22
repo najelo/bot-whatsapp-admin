@@ -7,18 +7,20 @@ try:
     from dotenv import load_dotenv
     load_dotenv(override=True)
 except ImportError:
-    pass  # Si no está instalado o no se necesita, no importa
+    pass
 
-# 2. Obtener las credenciales
+# 2. Función para obtener el cliente de Supabase
 def get_supabase():
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_KEY")
+    
+    if not url or not key:
+        raise Exception("ERROR: Las variables SUPABASE_URL o SUPABASE_KEY no están configuradas.")
+    
     return create_client(url, key)
-if not url or not key:
-    raise Exception("ERROR: Las variables SUPABASE_URL o SUPABASE_KEY no están configuradas.")
 
-# 4. Crear cliente de Supabase
-supabase = create_client(url, key)
+# Inicializamos el cliente globalmente para usarlo en las funciones
+supabase = get_supabase()
 
 def verificar_login(username, password_input):
     """
@@ -41,7 +43,7 @@ def verificar_login(username, password_input):
 
 def registrar_usuario_seguro(username, password):
     """
-    Registra un nuevo usuario con contraseña cifrada (úselo solo para el admin).
+    Registra un nuevo usuario con contraseña cifrada.
     """
     hash_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     data = {
