@@ -2,8 +2,7 @@ import streamlit as st
 from auth_utils import verificar_login
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, actualizar_configuracion, 
-    obtener_todas_las_respuestas
+    eliminar_configuracion, guardar_palabra_individual
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -35,26 +34,35 @@ else:
         st.divider()
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
-        todas_respuestas = obtener_todas_las_respuestas()
-
+        
+        # Lógica para agrupar palabras por respuesta
+        agrupadas = {}
         for conf in configuraciones:
-            with st.expander(f"Regla: {conf['palabra_clave']}"):
-                nueva_palabra = st.text_input("Palabra", value=conf['palabra_clave'], key=f"p_{conf['id']}")
-                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
-                resp_actual = conf.get('respuestas', {}).get('contenido', '')
-                
-                sel_respuesta = st.selectbox("Vincular a respuesta:", list(opciones.keys()), 
-                                             index=list(opciones.keys()).index(resp_actual) if resp_actual in opciones else 0,
-                                             key=f"s_{conf['id']}")
+            r_id = conf['respuesta_id']
+            if r_id not in agrupadas:
+                agrupadas[r_id] = {"contenido": conf['respuestas']['contenido'], "palabras": [], "ids": []}
+            agrupadas[r_id]["palabras"].append(conf['palabra_clave'])
+            agrupadas[r_id]["ids"].append(conf['id'])
+
+        for r_id, datos in agrupadas.items():
+            with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
+                nueva_lista = st.text_input("Palabras clave (separadas por coma)", 
+                                            value=", ".join(datos['palabras']), 
+                                            key=f"input_{r_id}")
+                st.write(f"**Respuesta:** {datos['contenido']}")
                 
                 col1, col2 = st.columns(2)
-                if col1.button("Guardar Cambios", key=f"upd_{conf['id']}"):
-                    actualizar_configuracion(conf['id'], nueva_palabra, opciones[sel_respuesta])
+                if col1.button("Actualizar grupo", key=f"btn_{r_id}"):
+                    for id_a_borrar in datos['ids']:
+                        eliminar_configuracion(id_a_borrar)
+                    for p in nueva_lista.split(','):
+                        guardar_palabra_individual(p.strip(), r_id)
                     st.rerun()
-                if col2.button("🗑️ Eliminar", key=f"del_{conf['id']}"):
-                    eliminar_configuracion(conf['id'])
+                if col2.button("🗑️ Eliminar todo el grupo", key=f"del_{r_id}"):
+                    for id_a_borrar in datos['ids']:
+                        eliminar_configuracion(id_a_borrar)
                     st.rerun()
 
     with tab2:
-        # (Tu código de pagos existente sigue aquí igual)
+        # (Tu código de pagos existente)
         pass
