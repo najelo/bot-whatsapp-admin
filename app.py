@@ -41,7 +41,6 @@ else:
         configuraciones = obtener_configuraciones()
         todas_respuestas = obtener_todas_las_respuestas()
         
-        # Agrupación para edición masiva
         agrupadas = {}
         for conf in configuraciones:
             r_id = conf['respuesta_id']
@@ -53,7 +52,6 @@ else:
         for r_id, datos in agrupadas.items():
             with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
                 nueva_lista = st.text_input("Palabras clave", value=", ".join(datos['palabras']), key=f"inp_{r_id}")
-                
                 opciones = {r['contenido']: r['id'] for r in todas_respuestas}
                 idx = list(opciones.keys()).index(datos['contenido']) if datos['contenido'] in opciones else 0
                 sel = st.selectbox("Vincular a respuesta:", list(opciones.keys()), index=idx, key=f"sel_{r_id}")
@@ -81,7 +79,8 @@ else:
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
         
-        for c in contactos:
+        # Uso de un contador para asegurar llaves únicas si hay IDs repetidos
+        for i, c in enumerate(contactos):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
@@ -89,7 +88,8 @@ else:
                 if c['activo']:
                     col2.success("✅ Activo")
                 else:
-                    if col2.button("Activar", key=f"btn_activar_{c['id']}"):
+                    # Llave única combinando ID y posición en la lista
+                    if col2.button("Activar", key=f"btn_activar_{c['id']}_{i}"):
                         activar_contacto(c['id'])
                         st.rerun()
 
