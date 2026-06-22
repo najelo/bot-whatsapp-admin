@@ -1,32 +1,31 @@
 from auth_utils import get_supabase
 
 def obtener_configuracion_pagos():
+    """Trae todos los registros de la tabla configuracion_pago."""
     try:
-        supabase = get_supabase()
-        return supabase.table("configuracion_pago").select("*").execute().data
+        # Ordenamos por id para que la lista sea consistente
+        return get_supabase().table("configuracion_pago").select("*").order("id").execute().data
     except Exception:
         return []
 
-def guardar_regla_pago(telefono, identidad, monto):
+def guardar_contacto(cedula, telefono):
+    """Guarda un nuevo registro de pago (activo inicia en FALSE)."""
     try:
-        supabase = get_supabase()
-        supabase.table("configuracion_pago").insert({
-            "telefono_activo": telefono,
-            "identidad_activa": identidad,
-            "monto_minimo_aprobacion": monto,
-            "esta_activo": False # Por defecto empieza desactivado
+        return get_supabase().table("configuracion_pago").insert({
+            "cedula_esperada": cedula,
+            "telefono_esperado": telefono,
+            "activo": False 
         }).execute()
-        return True, "Regla creada exitosamente"
     except Exception as e:
         return False, str(e)
 
-def activar_regla_pago(id_a_activar):
+def activar_contacto(id_a_activar):
+    """Desactiva todos los registros y activa solo el seleccionado."""
     try:
         supabase = get_supabase()
-        # Desactiva todos los demás
-        supabase.table("configuracion_pago").update({"esta_activo": False}).neq("id", id_a_activar).execute()
-        # Activa el seleccionado
-        supabase.table("configuracion_pago").update({"esta_activo": True}).eq("id", id_a_activar).execute()
-        return True, "Regla activada"
+        # 1. Desactivamos todos
+        supabase.table("configuracion_pago").update({"activo": False}).neq("id", -1).execute()
+        # 2. Activamos el seleccionado
+        return supabase.table("configuracion_pago").update({"activo": True}).eq("id", id_a_activar).execute()
     except Exception as e:
         return False, str(e)
