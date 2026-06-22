@@ -38,7 +38,7 @@ else:
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
         
-        # Agrupación por ID de respuesta
+        # --- LÓGICA CORREGIDA: Agrupación estricta por respuesta_id ---
         agrupadas = {}
         for conf in configuraciones:
             r_id = conf['respuesta_id']
@@ -51,28 +51,19 @@ else:
             agrupadas[r_id]["palabras"].append(conf['palabra_clave'])
             agrupadas[r_id]["ids"].append(conf['id'])
 
+        # Dibujar bloques únicos
         for r_id, datos in agrupadas.items():
-            with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
-                # 1. Edición de palabras clave
-                nueva_lista = st.text_input("Palabras clave:", 
-                                            value=", ".join(datos['palabras']), 
-                                            key=f"input_{r_id}")
+            palabras_str = ", ".join(datos['palabras'])
+            with st.expander(f"Regla: {palabras_str}"):
                 
-                # 2. Edición de la respuesta asociada
-                nueva_respuesta = st.text_area("Respuesta:", 
-                                               value=datos['contenido'], 
-                                               key=f"area_{r_id}")
+                nueva_lista = st.text_input("Palabras clave:", value=palabras_str, key=f"input_{r_id}")
+                nueva_respuesta = st.text_area("Respuesta:", value=datos['contenido'], key=f"area_{r_id}")
                 
                 col1, col2 = st.columns(2)
                 if col1.button("Guardar cambios", key=f"save_{r_id}"):
-                    # Actualizar texto de la respuesta en la tabla 'respuestas'
                     get_supabase().table("respuestas").update({"contenido": nueva_respuesta}).eq("id", r_id).execute()
-                    
-                    # Actualizar palabras clave en 'clientes'
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
                     for p in nueva_lista.split(','): guardar_palabra_individual(p.strip(), r_id)
-                    
-                    st.success("Guardado correctamente")
                     st.rerun()
                 
                 if col2.button("🗑️ Eliminar grupo", key=f"del_{r_id}"):
