@@ -32,10 +32,16 @@ else:
                 if exito: st.success(msg)
                 else: st.error(msg)
         
-        if st.button("Actualizar lista"):
+        if st.button("Ver todas las configuraciones"):
             datos = obtener_configuraciones()
-            if datos: st.table(datos)
-            else: st.info("No hay configuraciones.")
+            if datos:
+                lista_limpia = []
+                for item in datos:
+                    contenido = item.get('respuestas', {}).get('contenido', 'Sin respuesta')
+                    lista_limpia.append({"Palabra": item['palabra_clave'], "Respuesta": contenido})
+                st.table(lista_limpia)
+            else:
+                st.info("No hay configuraciones.")
 
     with tab2:
         st.write("Sección en desarrollo...")
