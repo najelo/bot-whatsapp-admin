@@ -1,11 +1,11 @@
 import streamlit as st
-from auth_utils import verificar_login
+from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, guardar_palabra_individual
+    eliminar_configuracion, guardar_palabra_individual,
+    obtener_todas_las_respuestas
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
-from auth_utils import get_supabase
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
@@ -39,8 +39,8 @@ else:
         st.divider()
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
+        todas_respuestas = obtener_todas_las_respuestas()
         
-        # Agrupación de datos para la edición masiva
         agrupadas = {}
         for conf in configuraciones:
             r_id = conf['respuesta_id']
@@ -51,34 +51,48 @@ else:
 
         for r_id, datos in agrupadas.items():
             with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
-                nueva_lista = st.text_input("Palabras clave (separadas por coma)", 
-                                            value=", ".join(datos['palabras']), 
-                                            key=f"input_{r_id}")
-                
-                nueva_respuesta = st.text_area("Respuesta automática", 
-                                               value=datos['contenido'], 
-                                               key=f"area_{r_id}")
+                nueva_lista = st.text_input("Palabras clave", value=", ".join(datos['palabras']), key=f"inp_{r_id}")
+                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
+                idx = list(opciones.keys()).index(datos['contenido']) if datos['contenido'] in opciones else 0
+                sel = st.selectbox("Vincular a respuesta:", list(opciones.keys()), index=idx, key=f"sel_{r_id}")
                 
                 col1, col2 = st.columns(2)
                 if col1.button("Actualizar grupo", key=f"btn_{r_id}"):
-                    # 1. Borramos relaciones viejas
-                    for id_a_borrar in datos['ids']:
-                        eliminar_configuracion(id_a_borrar)
-                    
-                    # 2. Guardamos nuevas palabras
-                    for p in nueva_lista.split(','):
-                        guardar_palabra_individual(p.strip(), r_id)
-                    
-                    # 3. Actualizamos el texto de la respuesta en la tabla 'respuestas'
-                    get_supabase().table("respuestas").update({"contenido": nueva_respuesta}).eq("id", r_id).execute()
-                    
-                    st.success("Grupo actualizado correctamente")
+                    for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
+                    for p in nueva_lista.split(','): guardar_palabra_individual(p.strip(), opciones[sel])
                     st.rerun()
-                
-                if col2.button("🗑️ Eliminar todo el grupo", key=f"del_{r_id}"):
-                    for id_a_borrar in datos['ids']:
-                        eliminar_configuracion(id_a_borrar)
+                if col2.button("🗑️ Eliminar grupo", key=f"del_{r_id}"):
+                    for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
                     st.rerun()
     
     with tab2:
         st.subheader("Registrar nuevos datos de pago")
+        with st.form("form_contacto", clear_on_submit=True):
+            col_a, col_b = st.columns(2)
+            ced = col_a.text_input("Cédula Esperada")
+            tel = col_b.text_input("Teléfono Esperado")
+            if st.form_submit_button("➕ Registrar Datos"):
+                guardar_contacto(ced, tel)
+                st.rerun()
+
+        st.divider()
+        st.subheader("Seleccionar Registro Activo")
+        contactos = obtener_configuracion_pagos()
+        
+        for c in contactos:
+            with st.container(border=True):
+                col1, col2 = st.columns([4, 1], vertical_alignment="center")
+                estado_texto = "🟢 Activo" if c['activo'] else "⚪ Inactivo"
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
+                col1.caption(f"Estado: {estado_texto}")
+                
+                if c['activo']:
+                    col2.success("✅ Activo")
+                else:
+                    if col2.button("Activar", key=f"btn_{c['id']}"):
+                        activar_contacto(c['id'])
+                        st.rerun()
+
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
