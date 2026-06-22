@@ -45,21 +45,22 @@ else:
                     supabase = get_supabase()
                     nombre_archivo = f"{palabra_clave_pdf.lower().replace(' ', '_')}.pdf"
                     
-                    # Subir al Storage
+                    # 1. Subir al Storage 'recetarios-helado'
                     supabase.storage.from_("recetarios-helado").upload(
                         nombre_archivo, 
                         archivo_pdf.getvalue(), 
                         {"content-type": "application/pdf"}
                     )
                     
-                    # Obtener URL pública
+                    # 2. Obtener URL pública
                     url_publica = supabase.storage.from_("recetarios-helado").get_public_url(nombre_archivo)
                     
-                    # Guardar URL en tabla 'respuestas'
+                    # 3. Guardar URL en la tabla 'respuestas' usando tu función existente
                     guardar_configuracion(palabra_clave_pdf, url_publica)
                     st.success("¡Recetario subido y guardado exitosamente!")
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error al subir: {e}")
 
         st.divider()
         st.subheader("Reglas Actuales")
