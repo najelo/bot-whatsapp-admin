@@ -1,30 +1,52 @@
 import os
 import bcrypt
-from dotenv import load_dotenv
 from supabase import create_client
 
-# Cargar variables
-load_dotenv(override=True)
+# 1. Intentar cargar variables locales si existen (solo para desarrollo en tu PC)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except ImportError:
+    pass  # Si no está instalado o no se necesita, no importa
 
-# Crear el cliente dentro de una función o como variable global accesible
-def get_supabase():
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    return create_client(url, key)
+# 2. Obtener las credenciales
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
+
+# 3. Validación de seguridad
+if not url or not key:
+    raise Exception("ERROR: Las variables SUPABASE_URL o SUPABASE_KEY no están configuradas.")
+
+# 4. Crear cliente de Supabase
+supabase = create_client(url, key)
 
 def verificar_login(username, password_input):
-    supabase = get_supabase() # <-- Obtenemos el cliente aquí dentro
+    """
+    Verifica si el usuario y contraseña son correctos.
+    """
+    # Buscar el usuario en la tabla
+    response = supabase.table("usuarios").select("*").eq("username", username).execute()
     
-    # 1. Buscar el usuario
-    usuario = supabase.table("usuarios").select("*").eq("username", username).execute()
-    
-    if not usuario.data:
+    if not response.data:
         return False, "Usuario no encontrado"
 
-    hash_guardado = usuario.data[0]["password_hash"].encode('utf-8')
+    user_data = response.data[0]
+    hash_guardado = user_data["password_hash"].encode('utf-8')
     
-    # 2. Comparar contraseñas
+    # Verificar contraseña cifrada
     if bcrypt.checkpw(password_input.encode('utf-8'), hash_guardado):
         return True, "Login exitoso"
     else:
         return False, "Contraseña incorrecta"
+
+def registrar_usuario_seguro(username, password):
+    """
+    Registra un nuevo usuario con contraseña cifrada (úselo solo para el admin).
+    """
+    hash_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    data = {
+        "username": username,
+        "password_hash": hash_password.decode('utf-8'),
+        "rol": "admin"
+    }
+    return supabase.table("usuarios").insert(data).execute()
