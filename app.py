@@ -1,40 +1,43 @@
 import streamlit as st
-from supabase import create_client
+from auth_utils import verificar_login
 
-supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+# Configuración de página
+st.set_page_config(page_title="Panel de Administración Bot", page_icon="🤖")
 
-st.title("🤖 Panel de Administración del Bot")
-tab1, tab2, tab3 = st.tabs(["💰 Pagos", "ℹ️ Info Negocio", "💬 FAQ Automáticas"])
+# Inicializar estado de sesión
+if "logueado" not in st.session_state:
+    st.session_state["logueado"] = False
 
-with tab1: # Pagos
-    ced = st.text_input("Cédula:")
-    tel = st.text_input("Teléfono:")
-    if st.button("Actualizar Pago"):
-        supabase.table("configuracion_pago").update({"activo": False}).eq("activo", True).execute()
-        supabase.table("configuracion_pago").insert({"cedula_esperada": ced, "telefono_esperado": tel, "activo": True}).execute()
-        st.success("Pago configurado")
-
-with tab2: # Info Negocio
-    info = st.text_area("Información oficial (horario, ubicación):")
-    if st.button("Actualizar Info"):
-        supabase.table("informacion_negocio").delete().neq("id", 0).execute()
-        supabase.table("informacion_negocio").insert({"contenido": info}).execute()
-        st.success("Info actualizada")
-
-with tab3: # FAQ (Respuestas Automáticas)
-    st.subheader("Gestionar Reglas de Respuesta")
-    with st.form("nueva_regla"):
-        clave = st.text_input("Palabra clave:")
-        respuesta = st.text_area("Respuesta asociada:")
-        if st.form_submit_button("Guardar Regla"):
-            supabase.table("respuestas_automaticas").insert({"palabra_clave": clave.lower(), "respuesta_texto": respuesta}).execute()
-            st.success("Regla guardada")
+# --- Lógica de Login ---
+def mostrar_login():
+    st.title("🔐 Login de Administrador")
+    username = st.text_input("Usuario")
+    password = st.text_input("Contraseña", type="password")
     
-    # Listar y borrar reglas
-    reglas = supabase.table("respuestas_automaticas").select("*").execute().data
-    for r in reglas:
-        col1, col2 = st.columns([3, 1])
-        col1.write(f"**{r['palabra_clave']}**: {r['respuesta_texto']}")
-        if col2.button("🗑️", key=f"del_{r['id']}"):
-            supabase.table("respuestas_automaticas").delete().eq("id", r['id']).execute()
+    if st.button("Entrar"):
+        es_valido, mensaje = verificar_login(username, password)
+        if es_valido:
+            st.session_state["logueado"] = True
             st.rerun()
+        else:
+            st.error(mensaje)
+
+# --- Contenido Principal (Lo que ve el admin) ---
+def mostrar_dashboard():
+    st.title("🤖 Panel de Control del Bot")
+    st.write("Bienvenido, administrador.")
+    
+    if st.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
+    
+    # AQUÍ VA LA LÓGICA DE TU BOT
+    # Por ejemplo: gestionar mensajes, ver logs, etc.
+    st.subheader("Configuración del Bot")
+    st.text("Aquí irían tus controles de WhatsApp...")
+
+# --- Control de flujo ---
+if not st.session_state["logueado"]:
+    mostrar_login()
+else:
+    mostrar_dashboard()
