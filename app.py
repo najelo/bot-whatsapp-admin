@@ -2,7 +2,8 @@ import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, guardar_palabra_individual
+    eliminar_configuracion, guardar_palabra_individual,
+    obtener_todas_las_respuestas
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -37,28 +38,53 @@ else:
         st.divider()
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
+        todas_respuestas = obtener_todas_las_respuestas()
         
-        # --- AGRUPACIÓN ESTRICTA POR PALABRA CLAVE ---
+        # --- AGRUPACIÓN INTELIGENTE ---
         agrupadas = {}
         for conf in configuraciones:
-            palabra = conf['palabra_clave'].strip()
-            if palabra not in agrupadas:
-                agrupadas[palabra] = {"respuestas": [], "ids": []}
-            
-            agrupadas[palabra]["respuestas"].append(conf['respuestas']['contenido'])
-            agrupadas[palabra]["ids"].append(conf['id'])
+            r_id = conf['respuesta_id']
+            if r_id not in agrupadas:
+                agrupadas[r_id] = {
+                    "palabras": [], 
+                    "contenido": conf['respuestas']['contenido'],
+                    "ids": []
+                }
+            # Solo agregamos la palabra si no está ya en la lista para evitar duplicidad visual
+            if conf['palabra_clave'] not in agrupadas[r_id]["palabras"]:
+                agrupadas[r_id]["palabras"].append(conf['palabra_clave'])
+            agrupadas[r_id]["ids"].append(conf['id'])
 
-        for palabra, datos in agrupadas.items():
-            with st.expander(f"Regla: {palabra}"):
-                st.write("**Respuestas asociadas:**")
-                for res in datos["respuestas"]:
-                    st.info(res)
+        for r_id, datos in agrupadas.items():
+            with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
+                # 1. Edición de palabras clave
+                nueva_lista = st.text_input("Editar palabras clave:", 
+                                            value=", ".join(datos['palabras']), 
+                                            key=f"input_{r_id}")
                 
-                if st.button(f"🗑️ Eliminar grupo completo: {palabra}", key=f"del_{palabra}"):
+                # 2. Edición de respuesta (texto)
+                st.info(f"Respuesta actual: {datos['contenido']}")
+                
+                col1, col2 = st.columns(2)
+                if col1.button("Actualizar grupo", key=f"upd_{r_id}"):
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
+                    for p in nueva_lista.split(','): guardar_palabra_individual(p.strip(), r_id)
+                    st.rerun()
+                
+                if col2.button("🗑️ Eliminar grupo", key=f"del_{r_id}"):
+                    for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
+                    st.rerun()
+
+                st.divider()
+                # 3. Vincular respuesta adicional
+                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
+                extra_sel = st.selectbox("Vincular otra respuesta existente:", list(opciones.keys()), key=f"sel_{r_id}")
+                if st.button("➕ Vincular a este grupo", key=f"link_{r_id}"):
+                    guardar_palabra_individual(datos['palabras'][0], opciones[extra_sel])
                     st.rerun()
     
     with tab2:
+        # ... (Mantener la sección de pagos igual que antes)
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
@@ -67,11 +93,9 @@ else:
             if st.form_submit_button("➕ Registrar Datos"):
                 guardar_contacto(ced, tel)
                 st.rerun()
-
         st.divider()
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
-        
         for i, c in enumerate(contactos):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
