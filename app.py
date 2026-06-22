@@ -1,7 +1,7 @@
 import streamlit as st
 from auth_utils import verificar_login
 from db_utils import obtener_configuraciones, guardar_configuracion
-from pagos_utils import obtener_configuracion_pagos, guardar_regla_pago
+from pagos_utils import obtener_configuracion_pagos, guardar_regla_pago, activar_regla_pago
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
@@ -37,11 +37,21 @@ else:
             tel = st.text_input("Teléfono de cobro")
             id_pagos = st.text_input("Identidad (ID)")
             monto = st.number_input("Monto mínimo de aprobación", min_value=0.0)
-            if st.form_submit_button("Guardar Reglas"):
+            if st.form_submit_button("Guardar Regla"):
                 exito, msg = guardar_regla_pago(tel, id_pagos, monto)
                 st.success(msg) if exito else st.error(msg)
-        if st.button("Ver reglas vigentes"):
-            st.table(obtener_configuracion_pagos())
+        
+        st.subheader("Reglas Vigentes")
+        reglas = obtener_configuracion_pagos()
+        for r in reglas:
+            col1, col2 = st.columns([3, 1])
+            col1.write(f"Tel: {r['telefono_activo']} | Monto: {r['monto_minimo_aprobacion']} | **Activo: {r['esta_activo']}**")
+            if not r['esta_activo']:
+                if col2.button("Activar", key=f"btn_{r['id']}"):
+                    activar_regla_pago(r['id'])
+                    st.rerun()
+            else:
+                col2.success("✅ Activo")
 
     if st.sidebar.button("Cerrar sesión"):
         st.session_state["logueado"] = False
