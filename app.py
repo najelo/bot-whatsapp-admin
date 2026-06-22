@@ -5,7 +5,8 @@ from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_c
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
-if "logueado" not in st.session_state: st.session_state["logueado"] = False
+if "logueado" not in st.session_state: 
+    st.session_state["logueado"] = False
 
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
@@ -16,12 +17,14 @@ if not st.session_state["logueado"]:
         if exito:
             st.session_state["logueado"] = True
             st.rerun()
-        else: st.error(msg)
+        else: 
+            st.error(msg)
 else:
     st.title("🤖 Panel de Control del Bot")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
     with tab1:
+        st.subheader("Configuración de Respuestas")
         with st.form("nueva_config", clear_on_submit=True):
             c = st.text_input("Palabra clave")
             r = st.text_area("Respuesta automática")
@@ -47,10 +50,11 @@ else:
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
         
-        # Estilo de tarjetas para cada registro de pago
+        # Iteración sobre los contactos registrados con diseño compacto
         for c in contactos:
             with st.container(border=True):
-                col1, col2 = st.columns([3, 1])
+                # Proporción 4:1 para que el botón no sea gigante
+                col1, col2 = st.columns([4, 1], vertical_alignment="center")
                 
                 estado_texto = "🟢 Activo" if c['activo'] else "⚪ Inactivo"
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
@@ -59,7 +63,7 @@ else:
                 if c['activo']:
                     col2.success("✅ Activo")
                 else:
-                    if col2.button("Activar", key=f"btn_{c['id']}", use_container_width=True):
+                    if col2.button("Activar", key=f"btn_{c['id']}"):
                         activar_contacto(c['id'])
                         st.rerun()
 
