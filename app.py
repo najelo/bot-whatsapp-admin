@@ -1,5 +1,10 @@
 import streamlit as st
-from auth_utils import get_supabase # Asegúrate de que tu auth_utils tenga esta función
+from auth_utils import get_supabase 
+import streamlit as st
+
+st.title("Prueba de diagnóstico")
+st.write("Si ves esto, el código está funcionando.")
+st.write(f"Estado de la sesión: {st.session_state}")# Asegúrate de que tu auth_utils tenga esta función
 
 def mostrar_dashboard():
     st.title("🤖 Panel de Configuración del Bot")
