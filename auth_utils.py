@@ -1,16 +1,16 @@
 import bcrypt
-import os
-from supabase import create_client
 
-url = os.environ.get("SUPABASE_URL")
-key = os.environ.get("SUPABASE_KEY")
-supabase = create_client(url, key)
+def verificar_login(username, password_input):
+    # 1. Buscar el usuario en Supabase
+    usuario = supabase.table("usuarios").select("*").eq("username", username).execute()
+    
+    if not usuario.data:
+        return False, "Usuario no encontrado"
 
-def registrar_usuario_seguro(username, password):
-    hash_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    data = {
-        "username": username,
-        "password_hash": hash_password.decode('utf-8'),
-        "rol": "admin"
-    }
-    return supabase.table("usuarios").insert(data).execute()
+    hash_guardado = usuario.data[0]["password_hash"].encode('utf-8')
+    
+    # 2. Comparar el hash con la contraseña ingresada
+    if bcrypt.checkpw(password_input.encode('utf-8'), hash_guardado):
+        return True, "Login exitoso"
+    else:
+        return False, "Contraseña incorrecta"
