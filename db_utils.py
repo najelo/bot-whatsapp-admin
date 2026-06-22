@@ -3,22 +3,29 @@ from auth_utils import get_supabase
 def obtener_configuraciones():
     try:
         supabase = get_supabase()
-        response = supabase.table("clientes").select("id, palabra_clave, respuesta_id, respuestas(contenido)").execute()
-        return response.data
+        return supabase.table("clientes").select("id, palabra_clave, respuesta_id, respuestas(contenido)").execute().data
     except Exception:
         return []
 
-def guardar_configuracion(palabra, respuesta_texto):
+def guardar_configuracion(palabras_clave, respuesta_texto):
+    """Guarda múltiples palabras clave vinculadas a una misma respuesta."""
     try:
         supabase = get_supabase()
+        # 1. Crear la respuesta única
         res_resp = supabase.table("respuestas").insert({"contenido": respuesta_texto}).execute()
         nuevo_id = res_resp.data[0]['id']
-        supabase.table("clientes").insert({"palabra_clave": palabra, "respuesta_id": nuevo_id}).execute()
-        return True, "Configuración guardada"
+        
+        # 2. Guardar cada palabra clave por separado
+        lista = [p.strip() for p in palabras_clave.split(',')]
+        for palabra in lista:
+            supabase.table("clientes").insert({
+                "palabra_clave": palabra.lower(),
+                "respuesta_id": nuevo_id
+            }).execute()
+        return True, "Reglas guardadas con éxito"
     except Exception as e:
         return False, str(e)
 
-# Asegúrate de que estas funciones estén tal cual aquí:
 def eliminar_configuracion(id_config):
     try:
         get_supabase().table("clientes").delete().eq("id", id_config).execute()
@@ -29,7 +36,7 @@ def eliminar_configuracion(id_config):
 def actualizar_configuracion(id_config, nueva_palabra, nuevo_id_respuesta):
     try:
         get_supabase().table("clientes").update({
-            "palabra_clave": nueva_palabra,
+            "palabra_clave": nueva_palabra.lower().strip(),
             "respuesta_id": nuevo_id_respuesta
         }).eq("id", id_config).execute()
         return True, "Actualizado"
