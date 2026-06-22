@@ -5,24 +5,29 @@ from db_utils import (
     eliminar_configuracion, guardar_palabra_individual
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
+from auth_utils import get_supabase
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
 
 if not st.session_state["logueado"]:
-    st.title("🔐 Acceso")
-    user, pwd = st.text_input("Usuario"), st.text_input("Contraseña", type="password")
+    st.title("🔐 Acceso al Sistema")
+    user = st.text_input("Usuario")
+    pwd = st.text_input("Contraseña", type="password")
     if st.button("Ingresar"):
         exito, msg = verificar_login(user, pwd)
-        if exito: st.session_state["logueado"] = True; st.rerun()
-        else: st.error(msg)
+        if exito:
+            st.session_state["logueado"] = True
+            st.rerun()
+        else: 
+            st.error(msg)
 else:
-    st.title("🤖 Panel de Control")
+    st.title("🤖 Panel de Control del Bot")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
     with tab1:
-        st.subheader("Nueva Regla")
+        st.subheader("Nueva Regla de Respuesta")
         with st.form("nueva_config", clear_on_submit=True):
             c = st.text_input("Palabras clave (separadas por coma)")
             r = st.text_area("Respuesta automática")
@@ -35,7 +40,7 @@ else:
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
         
-        # Lógica para agrupar palabras por respuesta
+        # Agrupación de datos para la edición masiva
         agrupadas = {}
         for conf in configuraciones:
             r_id = conf['respuesta_id']
@@ -49,20 +54,31 @@ else:
                 nueva_lista = st.text_input("Palabras clave (separadas por coma)", 
                                             value=", ".join(datos['palabras']), 
                                             key=f"input_{r_id}")
-                st.write(f"**Respuesta:** {datos['contenido']}")
+                
+                nueva_respuesta = st.text_area("Respuesta automática", 
+                                               value=datos['contenido'], 
+                                               key=f"area_{r_id}")
                 
                 col1, col2 = st.columns(2)
                 if col1.button("Actualizar grupo", key=f"btn_{r_id}"):
+                    # 1. Borramos relaciones viejas
                     for id_a_borrar in datos['ids']:
                         eliminar_configuracion(id_a_borrar)
+                    
+                    # 2. Guardamos nuevas palabras
                     for p in nueva_lista.split(','):
                         guardar_palabra_individual(p.strip(), r_id)
+                    
+                    # 3. Actualizamos el texto de la respuesta en la tabla 'respuestas'
+                    get_supabase().table("respuestas").update({"contenido": nueva_respuesta}).eq("id", r_id).execute()
+                    
+                    st.success("Grupo actualizado correctamente")
                     st.rerun()
+                
                 if col2.button("🗑️ Eliminar todo el grupo", key=f"del_{r_id}"):
                     for id_a_borrar in datos['ids']:
                         eliminar_configuracion(id_a_borrar)
                     st.rerun()
-
+    
     with tab2:
-        # (Tu código de pagos existente)
-        pass
+        st.subheader("Registrar nuevos datos de pago")
