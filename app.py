@@ -2,8 +2,7 @@ import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, guardar_palabra_individual,
-    obtener_todas_las_respuestas
+    eliminar_configuracion, guardar_palabra_individual
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -38,9 +37,8 @@ else:
         st.divider()
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
-        todas_respuestas = obtener_todas_las_respuestas()
         
-        # --- LÓGICA DE AGRUPACIÓN POR RESPUESTA ---
+        # Agrupación por ID de respuesta
         agrupadas = {}
         for conf in configuraciones:
             r_id = conf['respuesta_id']
@@ -54,30 +52,31 @@ else:
             agrupadas[r_id]["ids"].append(conf['id'])
 
         for r_id, datos in agrupadas.items():
-            with st.expander(f"Reglas: {', '.join(datos['palabras'])}"):
-                st.info(f"**Respuesta asociada:** {datos['contenido']}")
-                
-                # Editar palabras del grupo
-                nueva_lista = st.text_input("Editar palabras clave:", 
+            with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
+                # 1. Edición de palabras clave
+                nueva_lista = st.text_input("Palabras clave:", 
                                             value=", ".join(datos['palabras']), 
                                             key=f"input_{r_id}")
                 
+                # 2. Edición de la respuesta asociada
+                nueva_respuesta = st.text_area("Respuesta:", 
+                                               value=datos['contenido'], 
+                                               key=f"area_{r_id}")
+                
                 col1, col2 = st.columns(2)
-                if col1.button("Actualizar palabras", key=f"upd_{r_id}"):
+                if col1.button("Guardar cambios", key=f"save_{r_id}"):
+                    # Actualizar texto de la respuesta en la tabla 'respuestas'
+                    get_supabase().table("respuestas").update({"contenido": nueva_respuesta}).eq("id", r_id).execute()
+                    
+                    # Actualizar palabras clave en 'clientes'
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
                     for p in nueva_lista.split(','): guardar_palabra_individual(p.strip(), r_id)
+                    
+                    st.success("Guardado correctamente")
                     st.rerun()
                 
                 if col2.button("🗑️ Eliminar grupo", key=f"del_{r_id}"):
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
-                    st.rerun()
-
-                st.divider()
-                # Vincular respuesta extra
-                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
-                extra_sel = st.selectbox("Vincular otra respuesta existente:", list(opciones.keys()), key=f"sel_{r_id}")
-                if st.button("➕ Vincular a este grupo", key=f"link_{r_id}"):
-                    guardar_palabra_individual(datos['palabras'][0], opciones[extra_sel])
                     st.rerun()
     
     with tab2:
