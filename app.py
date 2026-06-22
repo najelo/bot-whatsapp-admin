@@ -1,6 +1,6 @@
 import streamlit as st
 from auth_utils import verificar_login
-from db_utils import obtener_palabras_clave, guardar_configuracion
+from db_utils import obtener_configuraciones, guardar_configuracion
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
@@ -26,21 +26,20 @@ else:
         st.subheader("Configuración de Respuestas")
         with st.form("nueva_config"):
             c = st.text_input("Palabra clave")
-            r = st.text_area("Respuesta")
-            t = st.text_input("Número de teléfono asociado")
+            r = st.text_area("Respuesta automática")
             if st.form_submit_button("Guardar"):
-                exito, msg = guardar_configuracion(c, r, t)
+                exito, msg = guardar_configuracion(c, r)
                 if exito: st.success(msg)
                 else: st.error(msg)
         
-        if st.button("Ver todas las configuraciones"):
-            datos = obtener_palabras_clave()
+        if st.button("Actualizar lista"):
+            datos = obtener_configuraciones()
             if datos: st.table(datos)
             else: st.info("No hay configuraciones.")
 
     with tab2:
-        st.write("Sección de pagos en desarrollo...")
+        st.write("Sección en desarrollo...")
     
-    if st.button("Cerrar sesión"):
+    if st.sidebar.button("Cerrar sesión"):
         st.session_state["logueado"] = False
         st.rerun()
