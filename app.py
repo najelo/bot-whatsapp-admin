@@ -1,27 +1,46 @@
-import os
-import bcrypt
 import streamlit as st
-from supabase import create_client
+from auth_utils import verificar_login
+from db_utils import obtener_palabras_clave, guardar_configuracion
 
-@st.cache_resource
-def get_supabase():
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    if not url or not key:
-        raise ValueError("Variables SUPABASE_URL o SUPABASE_KEY no configuradas")
-    return create_client(url, key)
+st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
-def verificar_login(username, password_input):
-    try:
-        supabase = get_supabase()
-        response = supabase.table("usuarios").select("password_hash").eq("username", username).execute()
+if "logueado" not in st.session_state:
+    st.session_state["logueado"] = False
+
+if not st.session_state["logueado"]:
+    st.title("🔐 Acceso al Sistema")
+    user = st.text_input("Usuario")
+    pwd = st.text_input("Contraseña", type="password")
+    if st.button("Ingresar"):
+        exito, mensaje = verificar_login(user, pwd)
+        if exito:
+            st.session_state["logueado"] = True
+            st.rerun()
+        else:
+            st.error(mensaje)
+else:
+    st.title("🤖 Panel de Control del Bot")
+    tab1, tab2 = st.tabs(["Configurar Bot", "Verificar Pagos"])
+    
+    with tab1:
+        st.subheader("Configuración de Respuestas")
+        with st.form("nueva_config"):
+            c = st.text_input("Palabra clave")
+            r = st.text_area("Respuesta")
+            t = st.text_input("Número de teléfono asociado")
+            if st.form_submit_button("Guardar"):
+                exito, msg = guardar_configuracion(c, r, t)
+                if exito: st.success(msg)
+                else: st.error(msg)
         
-        if not response.data:
-            return False, "Usuario no encontrado"
+        if st.button("Ver todas las configuraciones"):
+            datos = obtener_palabras_clave()
+            if datos: st.table(datos)
+            else: st.info("No hay configuraciones.")
 
-        hash_guardado = response.data[0]["password_hash"].encode('utf-8')
-        if bcrypt.checkpw(password_input.encode('utf-8'), hash_guardado):
-            return True, "Login exitoso"
-        return False, "Contraseña incorrecta"
-    except Exception as e:
-        return False, f"Error técnico: {str(e)}"
+    with tab2:
+        st.write("Sección de pagos en desarrollo...")
+    
+    if st.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
