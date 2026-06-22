@@ -20,8 +20,7 @@ if not st.session_state["logueado"]:
         if exito:
             st.session_state["logueado"] = True
             st.rerun()
-        else: 
-            st.error(msg)
+        else: st.error(msg)
 else:
     st.title("🤖 Panel de Control del Bot")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
@@ -52,10 +51,23 @@ else:
         for r_id, datos in agrupadas.items():
             with st.expander(f"Regla: {', '.join(datos['palabras'])}"):
                 nueva_lista = st.text_input("Palabras clave", value=", ".join(datos['palabras']), key=f"inp_{r_id}")
+                
                 opciones = {r['contenido']: r['id'] for r in todas_respuestas}
                 idx = list(opciones.keys()).index(datos['contenido']) if datos['contenido'] in opciones else 0
                 sel = st.selectbox("Vincular a respuesta:", list(opciones.keys()), index=idx, key=f"sel_{r_id}")
                 
+                # --- NUEVA FUNCIONALIDAD: VINCULAR RESPUESTA EXTRA ---
+                if st.button("➕ Vincular otra respuesta", key=f"add_resp_{r_id}"):
+                    st.session_state[f"vinculando_{r_id}"] = True
+                
+                if st.session_state.get(f"vinculando_{r_id}", False):
+                    extra_sel = st.selectbox("Elige respuesta extra:", list(opciones.keys()), key=f"extra_sel_{r_id}")
+                    if st.button("Confirmar vinculación", key=f"conf_vin_{r_id}"):
+                        for p in nueva_lista.split(','): 
+                            guardar_palabra_individual(p.strip(), opciones[extra_sel])
+                        st.session_state[f"vinculando_{r_id}"] = False
+                        st.rerun()
+
                 col1, col2 = st.columns(2)
                 if col1.button("Actualizar grupo", key=f"btn_upd_{r_id}"):
                     for id_borrar in datos['ids']: eliminar_configuracion(id_borrar)
@@ -79,16 +91,12 @@ else:
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
         
-        # Uso de un contador para asegurar llaves únicas si hay IDs repetidos
         for i, c in enumerate(contactos):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
-                
-                if c['activo']:
-                    col2.success("✅ Activo")
+                if c['activo']: col2.success("✅ Activo")
                 else:
-                    # Llave única combinando ID y posición en la lista
                     if col2.button("Activar", key=f"btn_activar_{c['id']}_{i}"):
                         activar_contacto(c['id'])
                         st.rerun()
