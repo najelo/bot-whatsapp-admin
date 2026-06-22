@@ -2,26 +2,26 @@ import streamlit as st
 from auth_utils import get_supabase
 from db_utils import guardar_respuesta_pdf, guardar_palabra_individual
 
-st.title("Panel de Control: Recetarios")
+st.title("🤖 Panel de Control: Recetarios")
 
-archivo_pdf = st.file_uploader("Selecciona el PDF", type="pdf")
-palabra = st.text_input("Palabra clave (ej: recetario)")
+# Asegúrate de haber creado el bucket 'recetarios' en Supabase Storage
+archivo_pdf = st.file_uploader("Subir PDF de Recetario", type="pdf")
+palabra_clave = st.text_input("Palabra clave para el bot (ej: recetario)")
 
-if st.button("Guardar"):
-    if archivo_pdf and palabra:
+if st.button("Subir y Guardar en Bot"):
+    if archivo_pdf and palabra_clave:
         supabase = get_supabase()
-        nombre = f"{palabra.lower()}.pdf"
-        
-        # 1. Subir al Storage (se guarda el archivo físico)
-        supabase.storage.from_("recetarios").upload(
-            nombre, archivo_pdf.getvalue(), {"content-type": "application/pdf"}
-        )
-        
-        # 2. Obtener el link público
-        url = supabase.storage.from_("recetarios").get_public_url(nombre)
-        
-        # 3. Guardar solo el link en tu tabla existente
-        exito, r_id = guardar_respuesta_pdf(url) 
-        if exito:
-            guardar_palabra_individual(palabra.lower(), r_id)
-            st.success("Recetario guardado con éxito")
+        # Subir al Storage
+        nombre_archivo = f"{palabra_clave.lower()}.pdf"
+        try:
+            supabase.storage.from_("recetarios").upload(nombre_archivo, archivo_pdf.getvalue(), {"content-type": "application/pdf"})
+            # Obtener URL pública
+            url_publica = supabase.storage.from_("recetarios").get_public_url(nombre_archivo)
+            
+            # Guardar URL en tabla 'respuestas'
+            exito, r_id = guardar_respuesta_pdf(url_publica)
+            if exito:
+                guardar_palabra_individual(palabra_clave.lower(), r_id)
+                st.success("¡Recetario subido con éxito!")
+        except Exception as e:
+            st.error(f"Error al subir: {e}")
