@@ -1,7 +1,7 @@
 import streamlit as st
 from auth_utils import verificar_login
 from db_utils import obtener_configuraciones, guardar_configuracion
-from pagos_utils import obtener_configuracion_pagos, guardar_regla_pago, activar_regla_pago
+from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
@@ -33,25 +33,29 @@ else:
             st.table([{"Palabra": i['palabra_clave'], "Respuesta": i.get('respuestas', {}).get('contenido')} for i in datos])
 
     with tab2:
-        with st.form("config_pagos"):
-            tel = st.text_input("Teléfono de cobro")
-            id_pagos = st.text_input("Identidad (ID)")
-            monto = st.number_input("Monto mínimo de aprobación", min_value=0.0)
-            if st.form_submit_button("Guardar Regla"):
-                exito, msg = guardar_regla_pago(tel, id_pagos, monto)
-                st.success(msg) if exito else st.error(msg)
+        st.subheader("Registrar nuevos datos de pago")
+        with st.form("form_contacto"):
+            ced = st.text_input("Cédula Esperada")
+            tel = st.text_input("Teléfono Esperado")
+            if st.form_submit_button("Guardar Datos"):
+                guardar_contacto(ced, tel)
+                st.rerun()
+
+        st.divider()
+        st.subheader("Seleccionar Registro Activo")
+        contactos = obtener_configuracion_pagos()
         
-        st.subheader("Reglas Vigentes")
-        reglas = obtener_configuracion_pagos()
-        for r in reglas:
+        for c in contactos:
             col1, col2 = st.columns([3, 1])
-            col1.write(f"Tel: {r['telefono_activo']} | Monto: {r['monto_minimo_aprobacion']} | **Activo: {r['esta_activo']}**")
-            if not r['esta_activo']:
-                if col2.button("Activar", key=f"btn_{r['id']}"):
-                    activar_regla_pago(r['id'])
-                    st.rerun()
-            else:
+            # Usamos los nombres exactos de tus columnas
+            col1.write(f"Cédula: {c['cedula_esperada']} | Tel: {c['telefono_esperado']}")
+            
+            if c['activo']:
                 col2.success("✅ Activo")
+            else:
+                if col2.button("Activar", key=f"btn_{c['id']}"):
+                    activar_contacto(c['id'])
+                    st.rerun()
 
     if st.sidebar.button("Cerrar sesión"):
         st.session_state["logueado"] = False
