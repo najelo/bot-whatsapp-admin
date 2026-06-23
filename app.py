@@ -11,13 +11,11 @@ st.set_page_config(page_title="Admin Bot", page_icon="🤖", layout="wide")
 # --- DIÁLOGO DE EDICIÓN ---
 @st.dialog("Editar Regla")
 def abrir_editor(conf):
-    st.write(f"Editando palabra: **{conf['palabra_clave']}**")
+    # Usamos .get() para evitar errores si algún campo falta
+    nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
-    # Edición de Palabra (Tabla: clientes)
-    nueva_palabra = st.text_input("Palabra clave", value=conf['palabra_clave'])
-    
-    # Edición de Contenido (Tabla: respuestas)
-    contenido_actual = conf['respuestas']['contenido']
+    resp_obj = conf.get('respuestas', {})
+    contenido_actual = resp_obj.get('contenido', '')
     nuevo_contenido = st.text_area("Editar respuesta o URL", value=contenido_actual)
     
     if st.button("Guardar Cambios"):
@@ -30,12 +28,12 @@ def abrir_editor(conf):
             # 2. Actualizar contenido en tabla 'respuestas'
             get_supabase().table("respuestas").update({
                 "contenido": nuevo_contenido
-            }).eq("id", conf['respuestas']['id']).execute()
+            }).eq("id", resp_obj['id']).execute()
             
             st.success("¡Guardado correctamente!")
             st.rerun()
         except Exception as e:
-            st.error(f"Error técnico: {e}")
+            st.error(f"Error: {e}")
 
 # --- LÓGICA PRINCIPAL ---
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
@@ -75,8 +73,8 @@ else:
         for conf in obtener_configuraciones():
             with st.container(border=True):
                 c1, c2, c3 = st.columns([3, 1, 1])
-                c1.write(f"🔑 **{conf['palabra_clave']}**")
-                c2.write("📄 PDF" if "http" in conf['respuestas']['contenido'] else "💬 Texto")
+                c1.write(f"🔑 **{conf.get('palabra_clave', 'N/A')}**")
+                c2.write("📄 PDF" if "http" in conf.get('respuestas', {}).get('contenido', '') else "💬 Texto")
                 if c3.button("✏️ Editar", key=f"edit_{conf['id']}"):
                     abrir_editor(conf)
     
@@ -92,8 +90,8 @@ else:
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1])
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
-                if c['activo']: col2.success("✅ Activo")
+                col1.markdown(f"**Cédula:** `{c.get('cedula_esperada', 'N/A')}`")
+                if c.get('activo'): col2.success("✅ Activo")
                 elif col2.button("Activar", key=f"act_{c['id']}"):
                     activar_contacto(c['id']); st.rerun()
 
