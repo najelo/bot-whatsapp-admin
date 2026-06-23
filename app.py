@@ -45,39 +45,39 @@ else:
                     supabase = get_supabase()
                     nombre_archivo = f"{palabra_clave_pdf.lower().replace(' ', '_')}.pdf"
                     
+                    # Subir al Storage
                     supabase.storage.from_("recetarios-helado").upload(
-                        path=nombre_archivo,
-                        file=archivo_pdf.getvalue(),
-                        file_options={"content-type": "application/pdf", "upsert": "true"}
+                        nombre_archivo, 
+                        archivo_pdf.getvalue(), 
+                        {"content-type": "application/pdf"}
                     )
                     
+                    # Obtener URL pública
                     url_publica = supabase.storage.from_("recetarios-helado").get_public_url(nombre_archivo)
+                    
+                    # Guardar URL en tabla 'respuestas'
                     guardar_configuracion(palabra_clave_pdf, url_publica)
-                    st.success("¡Recetario subido y vinculado!")
-                    st.rerun()
+                    st.success("¡Recetario subido y guardado exitosamente!")
                 except Exception as e:
                     st.error(f"Error: {e}")
 
         st.divider()
         st.subheader("Reglas Actuales")
         configuraciones = obtener_configuraciones()
-        
         if configuraciones:
             agrupado = {}
             for item in configuraciones:
                 rid = item['respuesta_id']
-                if rid not in agrupado: 
-                    agrupado[rid] = {"contenido": item['respuestas']['contenido'], "palabras": [], "ids": []}
+                if rid not in agrupado: agrupado[rid] = {"contenido": item['respuestas']['contenido'], "palabras": [], "ids": []}
                 agrupado[rid]["palabras"].append(item['palabra_clave'])
                 agrupado[rid]["ids"].append(item['id'])
             
             for rid, datos in agrupado.items():
                 with st.expander(f"Palabras: {', '.join(datos['palabras'])}"):
                     st.write(f"Respuesta: `{datos['contenido']}`")
-                    opciones = {r['contenido']: r['id'] for r in obtener_todas_las_respuestas()}
-                    extra_sel = st.selectbox("Agregar palabra a esta respuesta", [""] + list(opciones.keys()), key=f"sel_{rid}")
+                    extra_sel = st.selectbox("Agregar palabra a esta respuesta", [""] + obtener_todas_las_respuestas(), key=f"sel_{rid}")
                     if st.button("Agregar", key=f"add_{rid}") and extra_sel:
-                        guardar_palabra_individual(extra_sel, opciones[extra_sel])
+                        guardar_palabra_individual(extra_sel, rid)
                         st.rerun()
                     if st.button("🗑️ Eliminar regla", key=f"del_{rid}"):
                         for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
@@ -96,13 +96,12 @@ else:
         st.divider()
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
-        
         for i, c in enumerate(contactos):
             with st.container(border=True):
-                col1, col2 = st.columns([4, 1], vertical_alignment="center")
+                col1, col2 = st.columns([4, 1])
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
-                if c.get('activo'): col2.success("✅ Activo")
+                if c['activo']: col2.success("✅ Activo")
                 else:
-                    if col2.button("Activar", key=f"btn_act_{c['id']}"):
+                    if col2.button("Activar", key=f"act_{c['id']}"):
                         activar_contacto(c['id'])
                         st.rerun()
