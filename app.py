@@ -27,7 +27,7 @@ else:
     
     with tab1:
         st.subheader("Nueva Regla de Respuesta")
-        # Selector reactivo para PDF o Texto
+        # Selector para cambiar entre Texto y PDF
         tipo = st.radio("Tipo de entrada:", ["Texto", "PDF"], key="radio_tipo")
         
         with st.form("nueva_config", clear_on_submit=True):
@@ -44,6 +44,7 @@ else:
                     if archivo:
                         supabase = get_supabase()
                         nombre = f"{c.lower().replace(' ', '_')}.pdf"
+                        # Bucket especificado: recetarios-helado
                         supabase.storage.from_("recetarios-helado").upload(nombre, archivo.getvalue(), {"upsert": "true"})
                         url = supabase.storage.from_("recetarios-helado").get_public_url(nombre)
                         guardar_configuracion(c, url)
@@ -80,7 +81,6 @@ else:
                     st.rerun()
     
     with tab2:
-        # --- CÓDIGO DE PAGOS RESTAURADO EXACTAMENTE ---
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
