@@ -2,8 +2,7 @@ import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, actualizar_respuesta, guardar_palabra_individual,
-    obtener_todas_las_respuestas
+    eliminar_configuracion, actualizar_respuesta
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
