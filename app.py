@@ -26,7 +26,6 @@ else:
     st.title("🤖 Panel de Control del Bot")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
-    # --- TAB 1: Configuración del Bot (Mantenida intacta) ---
     with tab1:
         st.subheader("Nueva Regla de Respuesta")
         tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"])
@@ -47,7 +46,6 @@ else:
         for conf in configuraciones:
             st.write(f"**{conf['palabra_clave']}**: {conf['respuestas']['contenido']}")
 
-    # --- TAB 2: Configuración de Pagos (Con depuración) ---
     with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
@@ -60,20 +58,15 @@ else:
         st.divider()
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
-        
-        # DEPURACIÓN: Esto te dirá qué está leyendo realmente
-        st.write("Datos cargados:", contactos) 
-        
         for i, c in enumerate(contactos):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1])
-                # Muestra la cédula. Si sale vacío, es porque el nombre del campo en Supabase es distinto
-                col1.markdown(f"**Cédula:** `{c.get('cedula_esperada', 'N/A')}`")
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
                 
-                if c.get('activo', False):
+                if c['activo']: 
                     col2.success("✅ Activo")
                 else:
-                    if col2.button("Activar", key=f"btn_{c.get('id', i)}"):
+                    if col2.button("Activar", key=f"btn_{c['id']}"):
                         activar_contacto(c['id']); st.rerun()
 
     if st.sidebar.button("Cerrar sesión"):
