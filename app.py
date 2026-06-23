@@ -44,14 +44,16 @@ else:
                 try:
                     supabase = get_supabase()
                     nombre_archivo = f"{palabra_clave_pdf.lower().replace(' ', '_')}.pdf"
+                    
                     supabase.storage.from_("recetarios-helado").upload(
                         path=nombre_archivo,
                         file=archivo_pdf.getvalue(),
                         file_options={"content-type": "application/pdf", "upsert": "true"}
                     )
+                    
                     url_publica = supabase.storage.from_("recetarios-helado").get_public_url(nombre_archivo)
                     guardar_configuracion(palabra_clave_pdf, url_publica)
-                    st.success("¡Recetario subido!")
+                    st.success("¡Recetario subido y vinculado!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
@@ -59,6 +61,7 @@ else:
         st.divider()
         st.subheader("Reglas Actuales")
         configuraciones = obtener_configuraciones()
+        
         if configuraciones:
             agrupado = {}
             for item in configuraciones:
@@ -76,7 +79,7 @@ else:
                     if st.button("Agregar", key=f"add_{rid}") and extra_sel:
                         guardar_palabra_individual(extra_sel, opciones[extra_sel])
                         st.rerun()
-                    if st.button("🗑️ Eliminar todas las respuestas de esta regla", key=f"del_{rid}"):
+                    if st.button("🗑️ Eliminar regla", key=f"del_{rid}"):
                         for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                         st.rerun()
 
@@ -93,11 +96,12 @@ else:
         st.divider()
         st.subheader("Seleccionar Registro Activo")
         contactos = obtener_configuracion_pagos()
+        
         for i, c in enumerate(contactos):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
-                if c['activo']: col2.success("✅ Activo")
+                if c.get('activo'): col2.success("✅ Activo")
                 else:
                     if col2.button("Activar", key=f"btn_act_{c['id']}"):
                         activar_contacto(c['id'])
