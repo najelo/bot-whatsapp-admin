@@ -1,13 +1,12 @@
 import streamlit as st
-import uuid  # <--- IMPORTANTE: Importa esto al inicio de tu archivo
+import uuid
 from auth_utils import get_supabase
 
-# ... (resto de tu código)
+# Definición de pestañas (debe ir antes de usar tab1)
+tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
 
 with tab1:
     st.subheader("Nueva Regla (Texto o PDF)")
-    
-    # 1. Selector reactivo fuera del formulario
     tipo = st.radio("Tipo:", ["Texto", "PDF"], key="radio_tipo")
     
     with st.form("nueva_config", clear_on_submit=True):
@@ -27,24 +26,19 @@ with tab1:
             elif tipo == "PDF" and archivo:
                 try:
                     supabase = get_supabase()
-                    # 2. GENERAR NOMBRE ÚNICO: Usamos uuid para que nunca se repita
-                    # El nombre será: palabra_clave_randomID.pdf
+                    # GENERAR NOMBRE ÚNICO CON UUID
                     nombre_base = c.lower().replace(' ', '_')
                     identificador = str(uuid.uuid4())[:8]
                     nombre = f"{nombre_base}_{identificador}.pdf"
                     
-                    # 3. Subida a Supabase
                     supabase.storage.from_("recetarios-helado").upload(
                         path=nombre,
                         file=archivo.getvalue(),
                         file_options={"content-type": "application/pdf"}
                     )
                     
-                    # 4. Obtener URL y guardar en BD
                     url = supabase.storage.from_("recetarios-helado").get_public_url(nombre)
                     guardar_configuracion(c, url)
-                    
-                    st.success(f"Archivo guardado como: {nombre}")
-                    st.rerun()
+                    st.success("PDF subido correctamente"); st.rerun()
                 except Exception as e:
-                    st.error(f"Error técnico: {e}")
+                    st.error(f"Error al subir: {e}")
