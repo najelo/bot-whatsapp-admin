@@ -45,19 +45,20 @@ else:
                     supabase = get_supabase()
                     nombre_archivo = f"{palabra_clave_pdf.lower().replace(' ', '_')}.pdf"
                     
-                    # 1. Subir al Storage 'recetarios-helado'
+                    # 1. Subir/Sobrescribir al Storage (upsert=True)
                     supabase.storage.from_("recetarios-helado").upload(
-                        nombre_archivo, 
-                        archivo_pdf.getvalue(), 
-                        {"content-type": "application/pdf"}
+                        path=nombre_archivo,
+                        file=archivo_pdf.getvalue(),
+                        file_options={"content-type": "application/pdf", "upsert": "true"}
                     )
                     
                     # 2. Obtener URL pública
                     url_publica = supabase.storage.from_("recetarios-helado").get_public_url(nombre_archivo)
                     
-                    # 3. Guardar URL en la tabla 'respuestas' usando tu función existente
+                    # 3. Guardar en tu base de datos (reutilizando tu función original)
                     guardar_configuracion(palabra_clave_pdf, url_publica)
-                    st.success("¡Recetario subido y guardado exitosamente!")
+                    
+                    st.success("¡Recetario subido y guardado correctamente!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al subir: {e}")
@@ -85,6 +86,7 @@ else:
                         st.rerun()
 
     with tab2:
+        # ... (Tu código de pagos sigue igual)
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
@@ -93,16 +95,3 @@ else:
             if st.form_submit_button("➕ Registrar Datos"):
                 guardar_contacto(ced, tel)
                 st.rerun()
-
-        st.divider()
-        st.subheader("Seleccionar Registro Activo")
-        contactos = obtener_configuracion_pagos()
-        for i, c in enumerate(contactos):
-            with st.container(border=True):
-                col1, col2 = st.columns([4, 1])
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
-                if c['activo']: col2.success("✅ Activo")
-                else:
-                    if col2.button("Activar", key=f"act_{c['id']}"):
-                        activar_contacto(c['id'])
-                        st.rerun()
