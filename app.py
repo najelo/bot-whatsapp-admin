@@ -32,7 +32,6 @@ else:
         
         with st.form("nueva_config", clear_on_submit=True):
             c = st.text_input("Palabras clave (separadas por coma)")
-            
             if tipo == "Texto":
                 r = st.text_area("Respuesta automática")
                 if st.form_submit_button("Guardar Texto"):
@@ -45,16 +44,9 @@ else:
                     if archivo:
                         try:
                             supabase = get_supabase()
-                            # Lógica de nombre único con UUID para no sobrescribir
                             nombre_unico = f"{c.split(',')[0].strip().replace(' ', '_')}_{str(uuid.uuid4())[:8]}.pdf"
-                            
-                            supabase.storage.from_("recetarios-helado").upload(
-                                path=nombre_unico,
-                                file=archivo.getvalue(),
-                                file_options={"content-type": "application/pdf"}
-                            )
+                            supabase.storage.from_("recetarios-helado").upload(path=nombre_unico, file=archivo.getvalue(), file_options={"content-type": "application/pdf"})
                             url = supabase.storage.from_("recetarios-helado").get_public_url(nombre_unico)
-                            
                             exito, msg = guardar_configuracion(c, url)
                             if exito: st.success("PDF subido y registrado"); st.rerun()
                             else: st.error(msg)
@@ -62,7 +54,6 @@ else:
                             st.error(f"Error subiendo archivo: {e}")
 
         st.divider()
-        # ... (resto de tu lógica de visualización de reglas se mantiene igual)
         configuraciones = obtener_configuraciones()
         todas_respuestas = obtener_todas_las_respuestas()
         
@@ -76,16 +67,15 @@ else:
         for palabra, datos in agrupadas.items():
             with st.expander(f"Regla: {palabra}"):
                 for res in datos["respuestas"]: st.info(f"• {res}")
-                
                 opciones = {r['contenido']: r['id'] for r in todas_respuestas}
                 extra_sel = st.selectbox("Agregar otra respuesta:", list(opciones.keys()), key=f"sel_{palabra}")
                 if st.button("➕ Vincular respuesta", key=f"btn_link_{palabra}"):
-                    guardar_palabra_individual(palabra, opciones[extra_sel])
-                    st.rerun()
+                    guardar_palabra_individual(palabra, opciones[extra_sel]); st.rerun()
                 if st.button("🗑️ Eliminar todas", key=f"del_{palabra}"):
                     for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                     st.rerun()
-   with tab2:
+    
+    with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
@@ -101,22 +91,20 @@ else:
         for c in contactos:
             with st.container(border=True):
                 col1, col2, col3 = st.columns([3, 1, 1])
-                
-                # Mostramos ambos datos de identidad
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`<br>**Teléfono:** `{c['telefono_esperado']}`", unsafe_allow_html=True)
                 
-                # Lógica de Activación
                 if c['activo']: 
                     col2.success("✅ Activo")
                 else:
                     if col2.button("Activar", key=f"btn_act_{c['id']}"):
                         activar_contacto(c['id']); st.rerun()
                 
-                # Lógica de Eliminación
                 if col3.button("🗑️ Eliminar", key=f"del_{c['id']}"):
                     try:
-                        supabase = get_supabase()
-                        supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
+                        get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
+
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False; st.rerun()
