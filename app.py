@@ -1,6 +1,8 @@
 import sys
 import os
-# --- CORRECCIÓN DE RUTA PARA QUE ENCUENTRE LOS ARCHIVOS ---
+
+# --- CORRECCIÓN CRÍTICA: Añadir la subcarpeta al sistema de archivos ---
+# Esto permite que app.py encuentre db_utils, auth_utils y pagos_utils
 sys.path.append(os.path.join(os.path.dirname(__file__), "bot-whatsapp-admin-main"))
 
 import streamlit as st
@@ -51,12 +53,14 @@ else:
                         try:
                             supabase = get_supabase()
                             # --- LÓGICA DE NOMBRE ÚNICO (UUID) ---
+                            # Genera un nombre como: palabra_a1b2c3d4.pdf
                             nombre_base = c.split(',')[0].strip().replace(' ', '_')
                             nombre_unico = f"{nombre_base}_{str(uuid.uuid4())[:8]}.pdf"
                             
                             supabase.storage.from_("recetarios-helado").upload(
                                 path=nombre_unico,
-                                file=archivo.getvalue()
+                                file=archivo.getvalue(),
+                                file_options={"content-type": "application/pdf"}
                             )
                             url = supabase.storage.from_("recetarios-helado").get_public_url(nombre_unico)
                             
@@ -66,5 +70,52 @@ else:
                         except Exception as e:
                             st.error(f"Error técnico: {e}")
 
-        # ... (Mantén aquí el resto de tu lógica de visualización de reglas)
-        # ...
+        # ... (Tu lógica de visualización de reglas sigue aquí)
+        st.divider()
+        st.subheader("Reglas Guardadas")
+        configuraciones = obtener_configuraciones()
+        todas_respuestas = obtener_todas_las_respuestas()
+        
+        agrupadas = {}
+        for conf in configuraciones:
+            palabra = conf['palabra_clave'].strip()
+            if palabra not in agrupadas: agrupadas[palabra] = {"respuestas": [], "ids": []}
+            agrupadas[palabra]["respuestas"].append(conf['respuestas']['contenido'])
+            agrupadas[palabra]["ids"].append(conf['id'])
+
+        for palabra, datos in agrupadas.items():
+            with st.expander(f"Regla: {palabra}"):
+                for res in datos["respuestas"]: st.info(f"• {res}")
+                
+                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
+                extra_sel = st.selectbox("Agregar otra respuesta:", list(opciones.keys()), key=f"sel_{palabra}")
+                if st.button("➕ Vincular respuesta", key=f"btn_link_{palabra}"):
+                    guardar_palabra_individual(palabra, opciones[extra_sel])
+                    st.rerun()
+                if st.button("🗑️ Eliminar todas", key=f"del_{palabra}"):
+                    for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
+                    st.rerun()
+    
+    with tab2:
+        st.subheader("Registrar nuevos datos de pago")
+        with st.form("form_contacto", clear_on_submit=True):
+            col_a, col_b = st.columns(2)
+            ced = col_a.text_input("Cédula Esperada")
+            tel = col_b.text_input("Teléfono Esperado")
+            if st.form_submit_button("➕ Registrar Datos"):
+                guardar_contacto(ced, tel); st.rerun()
+
+        st.divider()
+        st.subheader("Seleccionar Registro Activo")
+        contactos = obtener_configuracion_pagos()
+        for i, c in enumerate(contactos):
+            with st.container(border=True):
+                col1, col2 = st.columns([4, 1])
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
+                if c['activo']: col2.success("✅ Activo")
+                elif col2.button("Activar", key=f"btn_act_{c['id']}"):
+                    activar_contacto(c['id']); st.rerun()
+
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
