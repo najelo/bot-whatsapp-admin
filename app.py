@@ -10,7 +10,74 @@ from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_c
 st.set_page_config(page_title="Admin Bot", page_icon="🤖")
 
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
+import streamlit as st
+from auth_utils import verificar_login, get_supabase
+from db_utils import (
+    obtener_configuraciones, guardar_configuracion, 
+    eliminar_configuracion, guardar_palabra_individual,
+    obtener_todas_las_respuestas
+)
+from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
+# --- LÓGICA DE PDF PARA TODA LA LISTA ---
+def obtener_todos_los_pdfs():
+    # Asumiendo que subes los PDFs con un prefijo o los guardas en una tabla específica
+    # Si quieres que se envíen TODOS los PDF al detectar una palabra:
+    supabase = get_supabase()
+    # Aquí consultarías tu tabla donde guardas las URLs de los PDFs
+    return supabase.table("recetarios").select("url").execute().data
+
+st.set_page_config(page_title="Admin Bot", page_icon="🤖")
+
+if "logueado" not in st.session_state: st.session_state["logueado"] = False
+
+if not st.session_state["logueado"]:
+    st.title("🔐 Acceso al Sistema")
+    user = st.text_input("Usuario")
+    pwd = st.text_input("Contraseña", type="password")
+    if st.button("Ingresar"):
+        exito, msg = verificar_login(user, pwd)
+        if exito:
+            st.session_state["logueado"] = True
+            st.rerun()
+        else: st.error(msg)
+else:
+    st.title("🤖 Panel de Control del Bot")
+    tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
+    
+    with tab1:
+        st.subheader("Nueva Regla de Respuesta")
+        with st.form("nueva_config", clear_on_submit=True):
+            c = st.text_input("Palabras clave (separadas por coma)")
+            r = st.text_area("Respuesta automática")
+            if st.form_submit_button("Guardar"):
+                exito, msg = guardar_configuracion(c, r)
+                if exito: st.success(msg); st.rerun()
+                else: st.error(msg)
+
+        # --- SECCIÓN NUEVA SOLICITADA ---
+        st.divider()
+        st.subheader("Subir PDF y Vincular a Palabra Clave")
+        archivo_pdf = st.file_uploader("Subir PDF", type="pdf")
+        palabra_vinculo = st.text_input("Palabra clave para activar este PDF")
+        
+        if st.button("Subir y Vincular"):
+            if archivo_pdf and palabra_vinculo:
+                supabase = get_supabase()
+                # Subir al storage
+                nombre_archivo = f"{palabra_vinculo}_{archivo_pdf.name}"
+                supabase.storage.from_("recetarios").upload(nombre_archivo, archivo_pdf.getvalue())
+                url = supabase.storage.from_("recetarios").get_public_url(nombre_archivo)
+                # Guardar en BD para que el bot lo encuentre
+                guardar_configuracion(palabra_vinculo, url)
+                st.success("PDF subido y vinculado")
+                st.rerun()
+
+        st.divider()
+        st.subheader("Reglas Actuales")
+        # Aquí va tu lógica de visualización original...
+        configuraciones = obtener_configuraciones()
+        # ... (resto de tu código de visualización)
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
     user = st.text_input("Usuario")
