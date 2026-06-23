@@ -3,7 +3,7 @@ from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
     eliminar_configuracion, guardar_palabra_individual,
-    obtener_todas_las_respuestas, actualizar_respuesta
+    obtener_todas_las_respuestas
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -32,52 +32,42 @@ else:
             r = st.text_area("Respuesta automática")
             if st.form_submit_button("Guardar"):
                 exito, msg = guardar_configuracion(c, r)
-                if exito: st.success("Regla guardada"); st.rerun()
+                if exito: st.success(msg); st.rerun()
                 else: st.error(msg)
 
         st.divider()
-        st.subheader("Subir Recetario (PDF)")
-        archivo_pdf = st.file_uploader("Selecciona el PDF", type="pdf")
-        palabra_clave_pdf = st.text_input("Palabra clave para el recetario")
-
-        if st.button("Subir al Storage y Guardar"):
-            if archivo_pdf and palabra_clave_pdf:
-                try:
-                    supabase = get_supabase()
-                    nombre = f"{palabra_clave_pdf.lower().replace(' ', '_')}.pdf"
-                    supabase.storage.from_("recetarios-helado").upload(
-                        path=nombre, file=archivo_pdf.getvalue(),
-                        file_options={"content-type": "application/pdf", "upsert": "true"}
-                    )
-                    url = supabase.storage.from_("recetarios-helado").get_public_url(nombre)
-                    guardar_configuracion(palabra_clave_pdf, url)
-                    st.success("¡Recetario subido!"); st.rerun()
-                except Exception as e: st.error(f"Error: {e}")
-
-        st.divider()
-        st.subheader("Reglas Actuales")
+        st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
+        todas_respuestas = obtener_todas_las_respuestas()
         
-        # Agrupación por ID de respuesta
+        # --- AGRUPACIÓN INTELIGENTE (Solución a duplicados) ---
         agrupadas = {}
         for conf in configuraciones:
-            rid = conf['respuesta_id']
-            if rid not in agrupadas:
-                agrupadas[rid] = {"contenido": conf['respuestas']['contenido'], "palabras": [], "ids": []}
-            agrupadas[rid]["palabras"].append(conf['palabra_clave'])
-            agrupadas[rid]["ids"].append(conf['id'])
+            palabra = conf['palabra_clave'].strip()
+            if palabra not in agrupadas:
+                agrupadas[palabra] = {"respuestas": [], "ids": []}
+            
+            agrupadas[palabra]["respuestas"].append(conf['respuestas']['contenido'])
+            agrupadas[palabra]["ids"].append(conf['id'])
 
-        for rid, datos in agrupadas.items():
-            with st.expander(f"Palabras: {', '.join(datos['palabras'])}"):
-                # Formulario para editar la respuesta
-                with st.form(key=f"form_{rid}"):
-                    nuevo_texto = st.text_area("Editar respuesta:", value=datos['contenido'])
-                    if st.form_submit_button("💾 Guardar cambios"):
-                        exito, msg = actualizar_respuesta(rid, nuevo_texto)
-                        if exito: st.success(msg); st.rerun()
-                        else: st.error(msg)
+        # Mostrar bloques consolidados
+        for palabra, datos in agrupadas.items():
+            with st.expander(f"Regla: {palabra}"):
+                st.write("**Respuestas vinculadas:**")
+                for res in datos["respuestas"]:
+                    st.info(f"• {res}")
                 
-                if st.button("🗑️ Eliminar regla completa", key=f"del_{rid}"):
+                # Selector para vincular una respuesta adicional
+                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
+                extra_sel = st.selectbox("Agregar otra respuesta:", list(opciones.keys()), key=f"sel_{palabra}")
+                
+                if st.button("➕ Vincular respuesta", key=f"btn_link_{palabra}"):
+                    # Al vincular, se añade la misma palabra con otro respuesta_id.
+                    # En la próxima carga, el bucle 'agrupadas' lo meterá en este mismo expander.
+                    guardar_palabra_individual(palabra, opciones[extra_sel])
+                    st.rerun()
+
+                if st.button("🗑️ Eliminar todas las respuestas de esta regla", key=f"del_{palabra}"):
                     for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                     st.rerun()
     
@@ -88,13 +78,23 @@ else:
             ced = col_a.text_input("Cédula Esperada")
             tel = col_b.text_input("Teléfono Esperado")
             if st.form_submit_button("➕ Registrar Datos"):
-                guardar_contacto(ced, tel); st.rerun()
+                guardar_contacto(ced, tel)
+                st.rerun()
 
         st.divider()
         st.subheader("Seleccionar Registro Activo")
-        for c in obtener_configuracion_pagos():
+        contactos = obtener_configuracion_pagos()
+        
+        for i, c in enumerate(contactos):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
-                if c.get('activo'): col2.success("✅ Activo")
-                elif col2.button("Activar", key=f"btn_{c['id']}"): activar_contacto(c['id']); st.rerun()
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
+                if c['activo']: col2.success("✅ Activo")
+                else:
+                    if col2.button("Activar", key=f"btn_activar_{c['id']}_{i}"):
+                        activar_contacto(c['id'])
+                        st.rerun()
+
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
