@@ -26,13 +26,28 @@ else:
     st.title("🤖 Panel de Control del Bot")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
+    # --- TAB 1: Configuración del Bot (Mantenida intacta) ---
     with tab1:
-        # ... (Tu lógica de reglas sigue igual) ...
+        st.subheader("Nueva Regla de Respuesta")
+        tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"])
+        
+        with st.form("nueva_regla", clear_on_submit=True):
+            p = st.text_input("Palabras clave (separadas por coma)")
+            if tipo == "Texto":
+                res = st.text_area("Respuesta")
+            else:
+                res = st.text_input("Link del PDF (o URL de Supabase)")
+            
+            if st.form_submit_button("Guardar Regla"):
+                guardar_configuracion(p, res)
+                st.rerun()
+
         st.subheader("Reglas Guardadas")
         configuraciones = obtener_configuraciones()
         for conf in configuraciones:
             st.write(f"**{conf['palabra_clave']}**: {conf['respuestas']['contenido']}")
 
+    # --- TAB 2: Configuración de Pagos (Con depuración) ---
     with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
@@ -44,24 +59,22 @@ else:
 
         st.divider()
         st.subheader("Seleccionar Registro Activo")
-        
-        # --- AQUÍ ESTÁ LA CORRECCIÓN ---
         contactos = obtener_configuracion_pagos()
-        if not contactos:
-            st.info("No hay registros de pago guardados aún.")
-        else:
-            for c in contactos:
-                with st.container(border=True):
-                    col1, col2 = st.columns([4, 1])
-                    # Usamos .get() para evitar errores si el campo está vacío
-                    cedula_mostrar = c.get('cedula_esperada', 'Sin Cédula')
-                    col1.markdown(f"**Cédula:** `{cedula_mostrar}`")
-                    
-                    if c.get('activo', False):
-                        col2.success("✅ Activo")
-                    else:
-                        if col2.button("Activar", key=f"btn_{c.get('id')}"):
-                            activar_contacto(c['id']); st.rerun()
+        
+        # DEPURACIÓN: Esto te dirá qué está leyendo realmente
+        st.write("Datos cargados:", contactos) 
+        
+        for i, c in enumerate(contactos):
+            with st.container(border=True):
+                col1, col2 = st.columns([4, 1])
+                # Muestra la cédula. Si sale vacío, es porque el nombre del campo en Supabase es distinto
+                col1.markdown(f"**Cédula:** `{c.get('cedula_esperada', 'N/A')}`")
+                
+                if c.get('activo', False):
+                    col2.success("✅ Activo")
+                else:
+                    if col2.button("Activar", key=f"btn_{c.get('id', i)}"):
+                        activar_contacto(c['id']); st.rerun()
 
     if st.sidebar.button("Cerrar sesión"):
         st.session_state["logueado"] = False; st.rerun()
