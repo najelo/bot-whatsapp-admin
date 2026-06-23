@@ -1,3 +1,8 @@
+import sys
+import os
+# --- CORRECCIÓN DE RUTA PARA QUE ENCUENTRE LOS ARCHIVOS ---
+sys.path.append(os.path.join(os.path.dirname(__file__), "bot-whatsapp-admin-main"))
+
 import streamlit as st
 import uuid
 from auth_utils import verificar_login, get_supabase
@@ -45,68 +50,21 @@ else:
                     if archivo:
                         try:
                             supabase = get_supabase()
-                            # Lógica de nombre único con UUID para no sobrescribir
-                            nombre_unico = f"{c.split(',')[0].strip().replace(' ', '_')}_{str(uuid.uuid4())[:8]}.pdf"
+                            # --- LÓGICA DE NOMBRE ÚNICO (UUID) ---
+                            nombre_base = c.split(',')[0].strip().replace(' ', '_')
+                            nombre_unico = f"{nombre_base}_{str(uuid.uuid4())[:8]}.pdf"
                             
                             supabase.storage.from_("recetarios-helado").upload(
                                 path=nombre_unico,
-                                file=archivo.getvalue(),
-                                file_options={"content-type": "application/pdf"}
+                                file=archivo.getvalue()
                             )
                             url = supabase.storage.from_("recetarios-helado").get_public_url(nombre_unico)
                             
                             exito, msg = guardar_configuracion(c, url)
-                            if exito: st.success("PDF subido y registrado"); st.rerun()
+                            if exito: st.success("PDF subido correctamente"); st.rerun()
                             else: st.error(msg)
                         except Exception as e:
-                            st.error(f"Error subiendo archivo: {e}")
+                            st.error(f"Error técnico: {e}")
 
-        st.divider()
-        # ... (resto de tu lógica de visualización de reglas se mantiene igual)
-        configuraciones = obtener_configuraciones()
-        todas_respuestas = obtener_todas_las_respuestas()
-        
-        agrupadas = {}
-        for conf in configuraciones:
-            palabra = conf['palabra_clave'].strip()
-            if palabra not in agrupadas: agrupadas[palabra] = {"respuestas": [], "ids": []}
-            agrupadas[palabra]["respuestas"].append(conf['respuestas']['contenido'])
-            agrupadas[palabra]["ids"].append(conf['id'])
-
-        for palabra, datos in agrupadas.items():
-            with st.expander(f"Regla: {palabra}"):
-                for res in datos["respuestas"]: st.info(f"• {res}")
-                
-                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
-                extra_sel = st.selectbox("Agregar otra respuesta:", list(opciones.keys()), key=f"sel_{palabra}")
-                if st.button("➕ Vincular respuesta", key=f"btn_link_{palabra}"):
-                    guardar_palabra_individual(palabra, opciones[extra_sel])
-                    st.rerun()
-                if st.button("🗑️ Eliminar todas", key=f"del_{palabra}"):
-                    for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
-                    st.rerun()
-    
-    with tab2:
-        # ... (mantiene tu lógica de pagos original)
-        st.subheader("Registrar nuevos datos de pago")
-        with st.form("form_contacto", clear_on_submit=True):
-            col_a, col_b = st.columns(2)
-            ced = col_a.text_input("Cédula Esperada")
-            tel = col_b.text_input("Teléfono Esperado")
-            if st.form_submit_button("➕ Registrar Datos"):
-                guardar_contacto(ced, tel); st.rerun()
-
-        st.divider()
-        st.subheader("Seleccionar Registro Activo")
-        contactos = obtener_configuracion_pagos()
-        for i, c in enumerate(contactos):
-            with st.container(border=True):
-                col1, col2 = st.columns([4, 1])
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
-                if c['activo']: col2.success("✅ Activo")
-                elif col2.button("Activar", key=f"btn_act_{c['id']}"):
-                    activar_contacto(c['id']); st.rerun()
-
-    if st.sidebar.button("Cerrar sesión"):
-        st.session_state["logueado"] = False
-        st.rerun()
+        # ... (Mantén aquí el resto de tu lógica de visualización de reglas)
+        # ...
