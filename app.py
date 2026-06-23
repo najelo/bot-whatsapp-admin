@@ -85,9 +85,7 @@ else:
                 if st.button("🗑️ Eliminar todas", key=f"del_{palabra}"):
                     for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                     st.rerun()
-    
-    with tab2:
-        # ... (mantiene tu lógica de pagos original)
+   with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
@@ -97,16 +95,28 @@ else:
                 guardar_contacto(ced, tel); st.rerun()
 
         st.divider()
-        st.subheader("Seleccionar Registro Activo")
+        st.subheader("Registros Guardados (Identidades)")
         contactos = obtener_configuracion_pagos()
-        for i, c in enumerate(contactos):
+        
+        for c in contactos:
             with st.container(border=True):
-                col1, col2 = st.columns([4, 1])
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
-                if c['activo']: col2.success("✅ Activo")
-                elif col2.button("Activar", key=f"btn_act_{c['id']}"):
-                    activar_contacto(c['id']); st.rerun()
-
-    if st.sidebar.button("Cerrar sesión"):
-        st.session_state["logueado"] = False
-        st.rerun()
+                col1, col2, col3 = st.columns([3, 1, 1])
+                
+                # Mostramos ambos datos de identidad
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`<br>**Teléfono:** `{c['telefono_esperado']}`", unsafe_allow_html=True)
+                
+                # Lógica de Activación
+                if c['activo']: 
+                    col2.success("✅ Activo")
+                else:
+                    if col2.button("Activar", key=f"btn_act_{c['id']}"):
+                        activar_contacto(c['id']); st.rerun()
+                
+                # Lógica de Eliminación
+                if col3.button("🗑️ Eliminar", key=f"del_{c['id']}"):
+                    try:
+                        supabase = get_supabase()
+                        supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
