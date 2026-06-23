@@ -2,9 +2,7 @@ import streamlit as st
 import uuid
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
-    obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, guardar_palabra_individual,
-    obtener_todas_las_respuestas
+    obtener_configuraciones, guardar_configuracion
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -14,16 +12,20 @@ st.set_page_config(page_title="Admin Bot", page_icon="🤖", layout="wide")
 @st.dialog("Editar Regla")
 def abrir_editor(conf):
     st.write(f"Editando palabra: **{conf['palabra_clave']}**")
-    nueva_palabra = st.text_input("Palabra clave", value=conf['palabra_clave'])
     
-    contenido_actual = conf['respuestas']['contenido']
-    st.write(f"Contenido actual: `{contenido_actual[:40]}...`")
-    nuevo_contenido = st.text_area("Editar contenido", value=contenido_actual)
+    # Campos de edición
+    nueva_palabra = st.text_input("Palabra clave", value=conf['palabra_clave'])
+    nuevo_contenido = st.text_area("Editar contenido", value=conf['respuestas']['contenido'])
     
     if st.button("Guardar Cambios"):
         try:
-            get_supabase().table("configuracion").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
-            get_supabase().table("respuestas").update({"contenido": nuevo_contenido}).eq("id", conf['respuestas']['id']).execute()
+            # Actualizamos la tabla 'respuestas' que es la que existe en tu panel
+            # Asegúrate de que esta tabla tenga ambas columnas (o ajusta si están separadas)
+            get_supabase().table("respuestas").update({
+                "palabra_clave": nueva_palabra, 
+                "contenido": nuevo_contenido
+            }).eq("id", conf['id']).execute()
+            
             st.success("¡Guardado!")
             st.rerun()
         except Exception as e:
@@ -43,26 +45,17 @@ if not st.session_state["logueado"]:
             st.rerun()
         else: st.error(msg)
 else:
-    st.title("🤖 Panel de Control del Bot")
+    st.title("🤖 Panel de Control")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
     with tab1:
-        st.subheader("Nueva Regla de Respuesta")
-        tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"])
+        st.subheader("Nueva Regla")
         with st.form("nueva_config", clear_on_submit=True):
             c = st.text_input("Palabras clave")
-            if tipo == "Texto":
-                r = st.text_area("Respuesta")
-                if st.form_submit_button("Guardar Texto"):
-                    guardar_configuracion(c, r); st.rerun()
-            else:
-                archivo = st.file_uploader("Sube el PDF", type="pdf")
-                if st.form_submit_button("Subir PDF"):
-                    if archivo:
-                        nombre_unico = f"{c.split(',')[0].strip()}_{uuid.uuid4().hex[:6]}.pdf"
-                        get_supabase().storage.from_("recetarios-helado").upload(nombre_unico, archivo.getvalue())
-                        url = get_supabase().storage.from_("recetarios-helado").get_public_url(nombre_unico)
-                        guardar_configuracion(c, url); st.rerun()
+            r = st.text_area("Respuesta o URL de PDF")
+            if st.form_submit_button("Guardar"):
+                guardar_configuracion(c, r)
+                st.rerun()
 
         st.divider()
         st.subheader("Reglas Activas")
@@ -75,13 +68,13 @@ else:
                     abrir_editor(conf)
     
     with tab2:
-        st.subheader("Registrar pagos")
-        with st.form("form_contacto", clear_on_submit=True):
-            col_a, col_b = st.columns(2)
-            ced = col_a.text_input("Cédula")
-            tel = col_b.text_input("Teléfono")
-            if st.form_submit_button("➕ Registrar"):
-                guardar_contacto(ced, tel); st.rerun()
+        st.subheader("Gestión de Pagos")
+        with st.form("form_pago", clear_on_submit=True):
+            ced = st.text_input("Cédula")
+            tel = st.text_input("Teléfono")
+            if st.form_submit_button("Registrar"):
+                guardar_contacto(ced, tel)
+                st.rerun()
         
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
