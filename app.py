@@ -11,32 +11,31 @@ st.set_page_config(page_title="Admin Bot", page_icon="🤖", layout="wide")
 # --- DIÁLOGO DE EDICIÓN ---
 @st.dialog("Editar Regla")
 def abrir_editor(conf):
-    st.write(f"Editando: **{conf['palabra_clave']}**")
+    st.write(f"Editando palabra: **{conf['palabra_clave']}**")
     
-    # Edición de Palabra
+    # Edición de Palabra (Tabla: clientes)
     nueva_palabra = st.text_input("Palabra clave", value=conf['palabra_clave'])
     
-    # Detección de PDF
+    # Edición de Contenido (Tabla: respuestas)
     contenido_actual = conf['respuestas']['contenido']
-    es_pdf = "http" in contenido_actual
-    
-    if es_pdf:
-        st.write(f"📄 **Archivo PDF actual:** [Ver archivo]({contenido_actual})")
-        nuevo_contenido = contenido_actual # Mantenemos la URL
-    else:
-        nuevo_contenido = st.text_area("Editar respuesta", value=contenido_actual)
+    nuevo_contenido = st.text_area("Editar respuesta o URL", value=contenido_actual)
     
     if st.button("Guardar Cambios"):
         try:
-            # Asegúrate que 'respuestas' sea el nombre de tu tabla
-            get_supabase().table("respuestas").update({
-                "palabra_clave": nueva_palabra, 
-                "contenido": nuevo_contenido
+            # 1. Actualizar palabra en tabla 'clientes'
+            get_supabase().table("clientes").update({
+                "palabra_clave": nueva_palabra
             }).eq("id", conf['id']).execute()
-            st.success("¡Guardado!")
+            
+            # 2. Actualizar contenido en tabla 'respuestas'
+            get_supabase().table("respuestas").update({
+                "contenido": nuevo_contenido
+            }).eq("id", conf['respuestas']['id']).execute()
+            
+            st.success("¡Guardado correctamente!")
             st.rerun()
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error técnico: {e}")
 
 # --- LÓGICA PRINCIPAL ---
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
@@ -50,22 +49,22 @@ if not st.session_state["logueado"]:
             st.session_state["logueado"] = True
             st.rerun()
 else:
+    st.title("🤖 Panel de Control del Bot")
     tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
     with tab1:
-        st.subheader("Nueva Regla (Texto o PDF)")
-        tipo = st.radio("Selecciona tipo:", ["Texto", "PDF"])
+        st.subheader("Nueva Regla")
+        tipo = st.radio("Tipo:", ["Texto", "PDF"])
         with st.form("nueva_config", clear_on_submit=True):
             palabra = st.text_input("Palabras clave")
             if tipo == "Texto":
                 res = st.text_area("Respuesta")
-                if st.form_submit_button("Guardar"):
+                if st.form_submit_button("Guardar Texto"):
                     guardar_configuracion(palabra, res); st.rerun()
             else:
-                archivo = st.file_uploader("Subir PDF", type="pdf")
+                archivo = st.file_uploader("Sube el PDF", type="pdf")
                 if st.form_submit_button("Guardar PDF"):
                     if archivo:
-                        # Usamos tu lógica de subida a Storage
                         nombre = f"{uuid.uuid4()}.pdf"
                         get_supabase().storage.from_("recetarios-helado").upload(nombre, archivo.getvalue())
                         url = get_supabase().storage.from_("recetarios-helado").get_public_url(nombre)
@@ -82,5 +81,22 @@ else:
                     abrir_editor(conf)
     
     with tab2:
-        # Tu lógica de pagos aquí
-        pass
+        st.subheader("Registrar pagos")
+        with st.form("form_contacto", clear_on_submit=True):
+            col_a, col_b = st.columns(2)
+            ced = col_a.text_input("Cédula")
+            tel = col_b.text_input("Teléfono")
+            if st.form_submit_button("➕ Registrar"):
+                guardar_contacto(ced, tel); st.rerun()
+        
+        for c in obtener_configuracion_pagos():
+            with st.container(border=True):
+                col1, col2 = st.columns([4, 1])
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
+                if c['activo']: col2.success("✅ Activo")
+                elif col2.button("Activar", key=f"act_{c['id']}"):
+                    activar_contacto(c['id']); st.rerun()
+
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
