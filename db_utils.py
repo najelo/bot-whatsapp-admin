@@ -1,54 +1,38 @@
 from auth_utils import get_supabase
 
 def obtener_configuraciones():
-    """Trae las palabras clave y sus respuestas relacionadas."""
+    """
+    Trae los datos de 'clientes' uniendo la información de 'respuestas'.
+    El 'respuestas(*)' es el JOIN que permite que app.py acceda a conf['respuestas'].
+    """
     try:
-        supabase = get_supabase()
-        # Consulta las tablas relacionadas
-        response = supabase.table("clientes").select("id, palabra_clave, respuesta_id, respuestas(contenido)").execute()
+        response = get_supabase().table("clientes").select("*, respuestas(*)").execute()
         return response.data
-    except Exception:
-        return []
-
-def obtener_todas_las_respuestas():
-    """Trae todas las respuestas disponibles para el selector."""
-    try:
-        return get_supabase().table("respuestas").select("*").execute().data
-    except Exception:
-        return []
-
-def guardar_configuracion(palabras_clave, respuesta_texto):
-    """Guarda una respuesta nueva y vincula múltiples palabras clave."""
-    try:
-        supabase = get_supabase()
-        res_resp = supabase.table("respuestas").insert({"contenido": respuesta_texto}).execute()
-        nuevo_id = res_resp.data[0]['id']
-        
-        lista = [p.strip() for p in palabras_clave.split(',')]
-        for palabra in lista:
-            if palabra:
-                supabase.table("clientes").insert({
-                    "palabra_clave": palabra.lower(),
-                    "respuesta_id": nuevo_id
-                }).execute()
-        return True, "Reglas guardadas"
     except Exception as e:
-        return False, str(e)
+        print(f"Error al obtener configuraciones: {e}")
+        return []
 
-def guardar_palabra_individual(palabra, respuesta_id):
-    """Guarda una palabra clave vinculada a un ID de respuesta existente."""
+def guardar_configuracion(palabra_clave, contenido):
+    """
+    Guarda los datos en dos pasos: primero en 'respuestas' y luego en 'clientes'
+    para mantener la integridad relacional.
+    """
     try:
-        get_supabase().table("clientes").insert({
-            "palabra_clave": palabra.lower().strip(),
-            "respuesta_id": respuesta_id
+        # 1. Primero creamos la respuesta y obtenemos su ID
+        resp_response = get_supabase().table("respuestas").insert({
+            "contenido": contenido
         }).execute()
-    except Exception:
-        pass
-
-def eliminar_configuracion(id_config):
-    """Elimina una fila específica de la tabla clientes."""
-    try:
-        get_supabase().table("clientes").delete().eq("id", id_config).execute()
-        return True, "Eliminado"
+        
+        # Obtenemos el ID de la fila recién creada
+        nueva_respuesta_id = resp_response.data[0]['id']
+        
+        # 2. Guardamos en 'clientes' usando el ID de la respuesta
+        get_supabase().table("clientes").insert({
+            "palabra_clave": palabra_clave,
+            "respuesta_id": nueva_respuesta_id
+        }).execute()
+        
+        return True
     except Exception as e:
-        return False, str(e)
+        print(f"Error al guardar configuración: {e}")
+        return False
