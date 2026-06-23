@@ -36,40 +36,44 @@ else:
                 else: st.error(msg)
 
         st.divider()
+        st.subheader("Subir Recetario (PDF)")
+        archivo_pdf = st.file_uploader("Selecciona el PDF", type="pdf")
+        palabra_clave_pdf = st.text_input("Palabra clave para el recetario")
+
+        if st.button("Subir al Storage y Guardar"):
+            if archivo_pdf and palabra_clave_pdf:
+                try:
+                    supabase = get_supabase()
+                    nombre = f"{palabra_clave_pdf.lower().replace(' ', '_')}.pdf"
+                    supabase.storage.from_("recetarios-helado").upload(
+                        path=nombre, file=archivo_pdf.getvalue(),
+                        file_options={"content-type": "application/pdf", "upsert": "true"}
+                    )
+                    url = supabase.storage.from_("recetarios-helado").get_public_url(nombre)
+                    guardar_configuracion(palabra_clave_pdf, url)
+                    st.success("¡Recetario subido!"); st.rerun()
+                except Exception as e: st.error(f"Error: {e}")
+
+        st.divider()
         st.subheader("Reglas Actuales")
         configuraciones = obtener_configuraciones()
-        todas_respuestas = obtener_todas_las_respuestas()
         
-        # --- LÓGICA DE AGRUPACIÓN CORREGIDA ---
+        # Agrupación correcta
         agrupadas = {}
         for conf in configuraciones:
-            # Agrupamos por respuesta_id para que una respuesta tenga varias palabras
             rid = conf['respuesta_id']
             if rid not in agrupadas:
-                agrupadas[rid] = {
-                    "contenido": conf['respuestas']['contenido'], 
-                    "palabras": [], 
-                    "ids": []
-                }
+                agrupadas[rid] = {"contenido": conf['respuestas']['contenido'], "palabras": [], "ids": []}
             agrupadas[rid]["palabras"].append(conf['palabra_clave'])
             agrupadas[rid]["ids"].append(conf['id'])
 
         for rid, datos in agrupadas.items():
             with st.expander(f"Palabras: {', '.join(datos['palabras'])}"):
                 st.write(f"**Respuesta:** {datos['contenido']}")
-                
-                # Selector de respuestas mejorado: muestra solo el contenido
-                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
-                extra_sel = st.selectbox("Agregar otra palabra a esta respuesta:", [""] + list(opciones.keys()), key=f"sel_{rid}")
-                
-                if st.button("➕ Vincular palabra", key=f"btn_link_{rid}") and extra_sel:
-                    guardar_palabra_individual(extra_sel, rid)
-                    st.rerun()
-
-                if st.button("🗑️ Eliminar esta regla", key=f"del_{rid}"):
+                if st.button("🗑️ Eliminar regla completa", key=f"del_{rid}"):
                     for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                     st.rerun()
-    
+
     with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
@@ -77,23 +81,13 @@ else:
             ced = col_a.text_input("Cédula Esperada")
             tel = col_b.text_input("Teléfono Esperado")
             if st.form_submit_button("➕ Registrar Datos"):
-                guardar_contacto(ced, tel)
-                st.rerun()
+                guardar_contacto(ced, tel); st.rerun()
 
         st.divider()
         st.subheader("Seleccionar Registro Activo")
-        contactos = obtener_configuracion_pagos()
-        
-        for i, c in enumerate(contactos):
+        for i, c in enumerate(obtener_configuracion_pagos()):
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`  |  **Tel:** `{c['telefono_esperado']}`")
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
                 if c.get('activo'): col2.success("✅ Activo")
-                else:
-                    if col2.button("Activar", key=f"btn_activar_{c['id']}_{i}"):
-                        activar_contacto(c['id'])
-                        st.rerun()
-
-    if st.sidebar.button("Cerrar sesión"):
-        st.session_state["logueado"] = False
-        st.rerun()
+                elif col2.button("Activar", key=f"btn_{c['id']}"): activar_contacto(c['id']); st.rerun()
