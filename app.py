@@ -2,41 +2,36 @@ import streamlit as st
 import uuid
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
-    obtener_configuraciones, guardar_configuracion, eliminar_configuracion
+    obtener_configuraciones, guardar_configuracion, 
+    eliminar_configuracion, guardar_palabra_individual,
+    obtener_todas_las_respuestas
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
 st.set_page_config(page_title="Admin Bot", page_icon="🤖", layout="wide")
 
-if "logueado" not in st.session_state: st.session_state["logueado"] = False
-
 # --- DIÁLOGO DE EDICIÓN ---
 @st.dialog("Editar Regla")
 def abrir_editor(conf):
-    st.write(f"Editando: **{conf['palabra_clave']}**")
-    
-    # Edición de Palabra
+    st.write(f"Editando palabra: **{conf['palabra_clave']}**")
     nueva_palabra = st.text_input("Palabra clave", value=conf['palabra_clave'])
     
-    # Identificar contenido
-    contenido = conf['respuestas']['contenido']
-    es_pdf = "http" in contenido
+    contenido_actual = conf['respuestas']['contenido']
+    st.write(f"Contenido actual: `{contenido_actual[:40]}...`")
+    nuevo_contenido = st.text_area("Editar contenido", value=contenido_actual)
     
-    if es_pdf:
-        st.info("Este registro tiene un PDF vinculado.")
-        if st.checkbox("¿Eliminar este PDF?"):
-            nuevo_contenido = None # Lógica para borrar archivo
-        else:
-            nuevo_contenido = contenido
-    else:
-        nuevo_contenido = st.text_area("Contenido", value=contenido)
-        
     if st.button("Guardar Cambios"):
-        get_supabase().table("configuracion").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
-        get_supabase().table("respuestas").update({"contenido": nuevo_contenido}).eq("id", conf['respuestas']['id']).execute()
-        st.rerun()
+        try:
+            get_supabase().table("configuracion").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
+            get_supabase().table("respuestas").update({"contenido": nuevo_contenido}).eq("id", conf['respuestas']['id']).execute()
+            st.success("¡Guardado!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
 
 # --- LÓGICA PRINCIPAL ---
+if "logueado" not in st.session_state: st.session_state["logueado"] = False
+
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
     user = st.text_input("Usuario")
@@ -48,61 +43,54 @@ if not st.session_state["logueado"]:
             st.rerun()
         else: st.error(msg)
 else:
-    # Sidebar
-    st.sidebar.title("Navegación")
-    menu = st.sidebar.radio("Opciones", ["🤖 Gestión de Respuestas", "💳 Gestión de Pagos"])
+    st.title("🤖 Panel de Control del Bot")
+    tab1, tab2 = st.tabs(["Configurar Bot", "Configurar Pagos"])
     
+    with tab1:
+        st.subheader("Nueva Regla de Respuesta")
+        tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"])
+        with st.form("nueva_config", clear_on_submit=True):
+            c = st.text_input("Palabras clave")
+            if tipo == "Texto":
+                r = st.text_area("Respuesta")
+                if st.form_submit_button("Guardar Texto"):
+                    guardar_configuracion(c, r); st.rerun()
+            else:
+                archivo = st.file_uploader("Sube el PDF", type="pdf")
+                if st.form_submit_button("Subir PDF"):
+                    if archivo:
+                        nombre_unico = f"{c.split(',')[0].strip()}_{uuid.uuid4().hex[:6]}.pdf"
+                        get_supabase().storage.from_("recetarios-helado").upload(nombre_unico, archivo.getvalue())
+                        url = get_supabase().storage.from_("recetarios-helado").get_public_url(nombre_unico)
+                        guardar_configuracion(c, url); st.rerun()
+
+        st.divider()
+        st.subheader("Reglas Activas")
+        for conf in obtener_configuraciones():
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([3, 1, 1])
+                c1.write(f"🔑 **{conf['palabra_clave']}**")
+                c2.write("📄 PDF" if "http" in conf['respuestas']['contenido'] else "💬 Texto")
+                if c3.button("✏️ Editar", key=f"edit_{conf['id']}"):
+                    abrir_editor(conf)
+    
+    with tab2:
+        st.subheader("Registrar pagos")
+        with st.form("form_contacto", clear_on_submit=True):
+            col_a, col_b = st.columns(2)
+            ced = col_a.text_input("Cédula")
+            tel = col_b.text_input("Teléfono")
+            if st.form_submit_button("➕ Registrar"):
+                guardar_contacto(ced, tel); st.rerun()
+        
+        for c in obtener_configuracion_pagos():
+            with st.container(border=True):
+                col1, col2 = st.columns([4, 1])
+                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
+                if c['activo']: col2.success("✅ Activo")
+                elif col2.button("Activar", key=f"act_{c['id']}"):
+                    activar_contacto(c['id']); st.rerun()
+
     if st.sidebar.button("Cerrar sesión"):
         st.session_state["logueado"] = False
         st.rerun()
-
-    # --- SECCIÓN: RESPUESTAS ---
-    if menu == "🤖 Gestión de Respuestas":
-        col_form, col_lista = st.columns([1, 2])
-        with col_form:
-            st.subheader("Nueva Regla")
-            tipo = st.radio("Tipo:", ["Texto", "PDF"])
-            with st.form("form_nueva", clear_on_submit=True):
-                palabras = st.text_input("Palabras clave")
-                respuesta = st.text_area("Contenido") if tipo == "Texto" else st.file_uploader("Subir PDF", type=["pdf"])
-                if st.form_submit_button("Guardar"):
-                    guardar_configuracion(palabras, respuesta)
-                    st.rerun()
-        
-        with col_lista:
-            st.subheader("Reglas Activas")
-            for conf in obtener_configuraciones():
-                with st.container(border=True):
-                    c1, c2, c3 = st.columns([3, 2, 1])
-                    c1.write(f"🔑 **{conf['palabra_clave']}**")
-                    c2.write("📄 PDF" if "http" in conf['respuestas']['contenido'] else "💬 Texto")
-                    if c3.button("✏️ Editar", key=f"edit_{conf['id']}"):
-                        abrir_editor(conf)
-
-    # --- SECCIÓN: PAGOS (RECUPERADA) ---
-    elif menu == "💳 Gestión de Pagos":
-        st.subheader("💳 Configuración de Pagos")
-        with st.container(border=True):
-            st.write("### ➕ Registrar nuevos datos")
-            col_a, col_b, col_c = st.columns([2, 2, 1])
-            ced = col_a.text_input("Cédula Esperada")
-            tel = col_b.text_input("Teléfono Esperado")
-            if col_c.button("Registrar Datos"):
-                guardar_contacto(ced, tel)
-                st.rerun()
-
-        st.divider()
-        st.subheader("Seleccionar Registro Activo")
-        contactos = obtener_configuracion_pagos()
-        for c in contactos:
-            with st.container(border=True):
-                col1, col2, col3 = st.columns([3, 1, 1])
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
-                if c.get('activo', False):
-                    col2.success("✅ Activo")
-                else:
-                    if col2.button("Activar", key=f"act_{c['id']}"):
-                        activar_contacto(c['id']); st.rerun()
-                if col3.button("🗑️ Eliminar", key=f"del_{c['id']}"):
-                    get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
-                    st.rerun()
