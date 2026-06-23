@@ -16,7 +16,7 @@ if "logueado" not in st.session_state: st.session_state["logueado"] = False
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
     user = st.text_input("Usuario")
-    pwd = st.text_input("Contraseña", type=\"password\")
+  pwd = st.text_input("Contraseña", type="password")
     if st.button("Ingresar"):
         exito, msg = verificar_login(user, pwd)
         if exito:
