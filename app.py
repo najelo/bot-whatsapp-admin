@@ -32,7 +32,7 @@ else:
             r = st.text_area("Respuesta automática")
             if st.form_submit_button("Guardar"):
                 exito, msg = guardar_configuracion(c, r)
-                if exito: st.success(msg); st.rerun()
+                if exito: st.success("Regla guardada"); st.rerun()
                 else: st.error(msg)
 
         st.divider()
@@ -58,7 +58,7 @@ else:
         st.subheader("Reglas Actuales")
         configuraciones = obtener_configuraciones()
         
-        # Agrupación correcta
+        # Agrupación técnica por ID de respuesta
         agrupadas = {}
         for conf in configuraciones:
             rid = conf['respuesta_id']
@@ -70,10 +70,17 @@ else:
         for rid, datos in agrupadas.items():
             with st.expander(f"Palabras: {', '.join(datos['palabras'])}"):
                 st.write(f"**Respuesta:** {datos['contenido']}")
+                
+                # Input para añadir palabra clave a esta regla existente
+                nueva_palabra = st.text_input(f"Añadir palabra a esta regla", key=f"inp_{rid}")
+                if st.button("➕ Añadir palabra", key=f"add_{rid}") and nueva_palabra:
+                    guardar_palabra_individual(nueva_palabra, rid)
+                    st.rerun()
+                    
                 if st.button("🗑️ Eliminar regla completa", key=f"del_{rid}"):
                     for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                     st.rerun()
-
+    
     with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
@@ -85,7 +92,7 @@ else:
 
         st.divider()
         st.subheader("Seleccionar Registro Activo")
-        for i, c in enumerate(obtener_configuracion_pagos()):
+        for c in obtener_configuracion_pagos():
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1], vertical_alignment="center")
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}` | **Tel:** `{c['telefono_esperado']}`")
