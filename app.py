@@ -16,13 +16,16 @@ if "logueado" not in st.session_state: st.session_state["logueado"] = False
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
     user = st.text_input("Usuario")
-  pwd = st.text_input("Contraseña", type="password")
+    # Asegúrate de que esta línea esté alineada exactamente con la anterior
+    pwd = st.text_input("Contraseña", type="password")
+    
     if st.button("Ingresar"):
         exito, msg = verificar_login(user, pwd)
         if exito:
             st.session_state["logueado"] = True
             st.rerun()
-        else: st.error(msg)
+        else: 
+            st.error(msg)
 else:
     st.title("🤖 Panel de Control del Bot")
     
