@@ -42,8 +42,17 @@ def guardar_palabra_individual(palabra, respuesta_id):
             "palabra_clave": palabra.lower().strip(),
             "respuesta_id": respuesta_id
         }).execute()
-    except Exception:
-        pass
+        return True, "Palabra agregada"
+    except Exception as e:
+        return False, str(e)
+
+def actualizar_respuesta(respuesta_id, nuevo_contenido):
+    """Actualiza el texto de una respuesta existente en la tabla respuestas."""
+    try:
+        get_supabase().table("respuestas").update({"contenido": nuevo_contenido}).eq("id", respuesta_id).execute()
+        return True, "Respuesta actualizada"
+    except Exception as e:
+        return False, str(e)
 
 def eliminar_configuracion(id_config):
     """Elimina una fila específica de la tabla clientes."""
