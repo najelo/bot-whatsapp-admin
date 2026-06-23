@@ -30,23 +30,64 @@ else:
         st.subheader("Nueva Regla de Respuesta")
         tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"])
         
-        with st.form("nueva_regla", clear_on_submit=True):
-            p = st.text_input("Palabras clave (separadas por coma)")
-            if tipo == "Texto":
-                res = st.text_area("Respuesta")
-            else:
-                res = st.text_input("Link del PDF (o URL de Supabase)")
+        with st.form("nueva_config", clear_on_submit=True):
+            c = st.text_input("Palabras clave (separadas por coma)")
             
-            if st.form_submit_button("Guardar Regla"):
-                guardar_configuracion(p, res)
-                st.rerun()
+            if tipo == "Texto":
+                r = st.text_area("Respuesta automática")
+                if st.form_submit_button("Guardar Texto"):
+                    exito, msg = guardar_configuracion(c, r)
+                    if exito: st.success(msg); st.rerun()
+                    else: st.error(msg)
+            else:
+                archivo = st.file_uploader("Sube el PDF", type="pdf")
+                if st.form_submit_button("Subir PDF"):
+                    if archivo:
+                        try:
+                            supabase = get_supabase()
+                            # Lógica de nombre único con UUID para no sobrescribir
+                            nombre_unico = f"{c.split(',')[0].strip().replace(' ', '_')}_{str(uuid.uuid4())[:8]}.pdf"
+                            
+                            supabase.storage.from_("recetarios-helado").upload(
+                                path=nombre_unico,
+                                file=archivo.getvalue(),
+                                file_options={"content-type": "application/pdf"}
+                            )
+                            url = supabase.storage.from_("recetarios-helado").get_public_url(nombre_unico)
+                            
+                            exito, msg = guardar_configuracion(c, url)
+                            if exito: st.success("PDF subido y registrado"); st.rerun()
+                            else: st.error(msg)
+                        except Exception as e:
+                            st.error(f"Error subiendo archivo: {e}")
 
-        st.subheader("Reglas Guardadas")
+        st.divider()
+        # ... (resto de tu lógica de visualización de reglas se mantiene igual)
         configuraciones = obtener_configuraciones()
+        todas_respuestas = obtener_todas_las_respuestas()
+        
+        agrupadas = {}
         for conf in configuraciones:
-            st.write(f"**{conf['palabra_clave']}**: {conf['respuestas']['contenido']}")
+            palabra = conf['palabra_clave'].strip()
+            if palabra not in agrupadas: agrupadas[palabra] = {"respuestas": [], "ids": []}
+            agrupadas[palabra]["respuestas"].append(conf['respuestas']['contenido'])
+            agrupadas[palabra]["ids"].append(conf['id'])
 
+        for palabra, datos in agrupadas.items():
+            with st.expander(f"Regla: {palabra}"):
+                for res in datos["respuestas"]: st.info(f"• {res}")
+                
+                opciones = {r['contenido']: r['id'] for r in todas_respuestas}
+                extra_sel = st.selectbox("Agregar otra respuesta:", list(opciones.keys()), key=f"sel_{palabra}")
+                if st.button("➕ Vincular respuesta", key=f"btn_link_{palabra}"):
+                    guardar_palabra_individual(palabra, opciones[extra_sel])
+                    st.rerun()
+                if st.button("🗑️ Eliminar todas", key=f"del_{palabra}"):
+                    for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
+                    st.rerun()
+    
     with tab2:
+        # ... (mantiene tu lógica de pagos original)
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
@@ -62,12 +103,10 @@ else:
             with st.container(border=True):
                 col1, col2 = st.columns([4, 1])
                 col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`")
-                
-                if c['activo']: 
-                    col2.success("✅ Activo")
-                else:
-                    if col2.button("Activar", key=f"btn_{c['id']}"):
-                        activar_contacto(c['id']); st.rerun()
+                if c['activo']: col2.success("✅ Activo")
+                elif col2.button("Activar", key=f"btn_act_{c['id']}"):
+                    activar_contacto(c['id']); st.rerun()
 
     if st.sidebar.button("Cerrar sesión"):
-        st.session_state["logueado"] = False; st.rerun()
+        st.session_state["logueado"] = False
+        st.rerun()
