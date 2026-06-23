@@ -3,20 +3,19 @@ import uuid
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, guardar_palabra_individual,
-    obtener_todas_las_respuestas
+    eliminar_configuracion
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
 # Configuración inicial con layout wide
 st.set_page_config(page_title="Admin Bot", page_icon="🤖", layout="wide")
 
-if "logueado" not in st.session_state: st.session_state["logueado"] = False
+if "logueado" not in st.session_state: 
+    st.session_state["logueado"] = False
 
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
     user = st.text_input("Usuario")
-    # Asegúrate de que esta línea esté alineada exactamente con la anterior
     pwd = st.text_input("Contraseña", type="password")
     
     if st.button("Ingresar"):
@@ -27,21 +26,21 @@ if not st.session_state["logueado"]:
         else: 
             st.error(msg)
 else:
-    st.title("🤖 Panel de Control del Bot")
+    # --- TODO ESTO ESTÁ DENTRO DEL ELSE (Solo visible si logueado) ---
     
-    # Navegación Lateral
- # --- Navegación Lateral Mejorada ---
-st.sidebar.title("Navegación")
-menu = st.sidebar.radio(
-    "", # Dejamos el label vacío para que no ocupe espacio extra
-    ["🤖 Gestión de Respuestas", "💳 Gestión de Pagos"],
-    index=0
-)
+    # Navegación Lateral (Ahora bien indentada)
+    st.sidebar.title("Navegación")
+    menu = st.sidebar.radio(
+        "Selecciona una opción:", 
+        ["🤖 Gestión de Respuestas", "💳 Gestión de Pagos"]
+    )
 
-st.sidebar.markdown("---") # Línea divisoria visual
-if st.sidebar.button("Cerrar sesión"):
-    st.session_state["logueado"] = False
-    st.rerun()
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Cerrar sesión"):
+        st.session_state["logueado"] = False
+        st.rerun()
+
+    st.title("🤖 Panel de Control del Bot")
 
     # --- Lógica de Gestión de Respuestas ---
     if menu == "🤖 Gestión de Respuestas":
@@ -49,7 +48,6 @@ if st.sidebar.button("Cerrar sesión"):
         
         with col_form:
             st.subheader("Nueva Regla")
-            tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"])
             with st.form("form_nueva_regla"):
                 palabras = st.text_input("Palabras clave (separadas por coma)")
                 respuesta = st.text_area("Contenido de la respuesta")
@@ -80,7 +78,7 @@ if st.sidebar.button("Cerrar sesión"):
             monto = c3.number_input("Monto Mín.", min_value=0.0)
             if c4.button("Registrar"):
                 try:
-                    guardar_contacto(ced, tel) # Ajustar según tu función original
+                    guardar_contacto(ced, tel)
                     st.rerun()
                 except Exception as e: st.error(f"Error: {e}")
 
