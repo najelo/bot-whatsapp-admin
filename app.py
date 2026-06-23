@@ -2,7 +2,8 @@ import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
-    eliminar_configuracion, actualizar_respuesta
+    eliminar_configuracion, actualizar_respuesta, guardar_palabra_individual,
+    obtener_todas_las_respuestas
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -12,10 +13,9 @@ if "logueado" not in st.session_state: st.session_state["logueado"] = False
 
 if not st.session_state["logueado"]:
     st.title("🔐 Acceso al Sistema")
-    # Se añaden keys únicos para evitar duplicados en el login
-    user = st.text_input("Usuario", key="login_user")
-    pwd = st.text_input("Contraseña", type="password", key="login_pass")
-    if st.button("Ingresar", key="btn_login"):
+    user = st.text_input("Usuario", key="login_u")
+    pwd = st.text_input("Contraseña", type="password", key="login_p")
+    if st.button("Ingresar", key="login_btn"):
         exito, msg = verificar_login(user, pwd)
         if exito:
             st.session_state["logueado"] = True
@@ -28,21 +28,20 @@ else:
     with tab1:
         st.subheader("Nueva Regla (Texto o PDF)")
         with st.form("nueva_config", clear_on_submit=True):
-            tipo = st.radio("Tipo de respuesta:", ["Texto", "PDF"], key="radio_tipo")
-            c = st.text_input("Palabra clave", key="input_palabra_nueva")
+            tipo = st.radio("Tipo:", ["Texto", "PDF"], key="radio_tipo")
+            c = st.text_input("Palabra clave", key="input_palabra")
             
             if tipo == "Texto":
-                r = st.text_area("Respuesta", key="input_resp_nueva")
+                r = st.text_area("Respuesta", key="input_resp")
                 if st.form_submit_button("Guardar"):
                     guardar_configuracion(c, r)
                     st.success("Guardado"); st.rerun()
             else:
-                archivo = st.file_uploader("Sube el PDF", type="pdf", key="uploader_pdf")
+                archivo = st.file_uploader("Sube el PDF", type="pdf", key="uploader")
                 if st.form_submit_button("Subir y Vincular"):
                     if archivo:
                         supabase = get_supabase()
                         nombre = f"{c.lower().replace(' ', '_')}.pdf"
-                        # Usando tu bucket correcto: recetarios-helado
                         supabase.storage.from_("recetarios-helado").upload(nombre, archivo.getvalue(), {"upsert": "true"})
                         url = supabase.storage.from_("recetarios-helado").get_public_url(nombre)
                         guardar_configuracion(c, url)
@@ -61,7 +60,6 @@ else:
             agrupadas[rid]["ids"].append(conf['id'])
 
         for rid, datos in agrupadas.items():
-            # Key único para el expander
             with st.expander(f"Palabras: {', '.join(datos['palabras'])}", key=f"exp_{rid}"):
                 with st.form(key=f"form_{rid}"):
                     nuevo_texto = st.text_area("Editar respuesta:", value=datos['contenido'], key=f"area_{rid}")
@@ -77,8 +75,8 @@ else:
         st.subheader("Datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
             col_a, col_b = st.columns(2)
-            ced = col_a.text_input("Cédula", key="cedula_pago")
-            tel = col_b.text_input("Teléfono", key="tel_pago")
+            ced = col_a.text_input("Cédula", key="ced_reg")
+            tel = col_b.text_input("Teléfono", key="tel_reg")
             if st.form_submit_button("➕ Registrar"):
                 guardar_contacto(ced, tel); st.rerun()
 
