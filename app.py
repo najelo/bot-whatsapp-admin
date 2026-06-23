@@ -30,11 +30,18 @@ else:
     st.title("🤖 Panel de Control del Bot")
     
     # Navegación Lateral
-    menu = st.sidebar.radio("Navegación", ["🤖 Gestión de Respuestas", "💳 Gestión de Pagos"])
-    
-    if st.sidebar.button("Cerrar sesión"):
-        st.session_state["logueado"] = False
-        st.rerun()
+ # --- Navegación Lateral Mejorada ---
+st.sidebar.title("Navegación")
+menu = st.sidebar.radio(
+    "", # Dejamos el label vacío para que no ocupe espacio extra
+    ["🤖 Gestión de Respuestas", "💳 Gestión de Pagos"],
+    index=0
+)
+
+st.sidebar.markdown("---") # Línea divisoria visual
+if st.sidebar.button("Cerrar sesión"):
+    st.session_state["logueado"] = False
+    st.rerun()
 
     # --- Lógica de Gestión de Respuestas ---
     if menu == "🤖 Gestión de Respuestas":
