@@ -3,7 +3,7 @@ from auth_utils import verificar_login, get_supabase
 from db_utils import (
     obtener_configuraciones, guardar_configuracion, 
     eliminar_configuracion, guardar_palabra_individual,
-    obtener_todas_las_respuestas
+    obtener_todas_las_respuestas, actualizar_respuesta
 )
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
@@ -58,7 +58,7 @@ else:
         st.subheader("Reglas Actuales")
         configuraciones = obtener_configuraciones()
         
-        # Agrupación técnica por ID de respuesta
+        # Agrupación por ID de respuesta
         agrupadas = {}
         for conf in configuraciones:
             rid = conf['respuesta_id']
@@ -69,14 +69,14 @@ else:
 
         for rid, datos in agrupadas.items():
             with st.expander(f"Palabras: {', '.join(datos['palabras'])}"):
-                st.write(f"**Respuesta:** {datos['contenido']}")
+                # Formulario para editar la respuesta
+                with st.form(key=f"form_{rid}"):
+                    nuevo_texto = st.text_area("Editar respuesta:", value=datos['contenido'])
+                    if st.form_submit_button("💾 Guardar cambios"):
+                        exito, msg = actualizar_respuesta(rid, nuevo_texto)
+                        if exito: st.success(msg); st.rerun()
+                        else: st.error(msg)
                 
-                # Input para añadir palabra clave a esta regla existente
-                nueva_palabra = st.text_input(f"Añadir palabra a esta regla", key=f"inp_{rid}")
-                if st.button("➕ Añadir palabra", key=f"add_{rid}") and nueva_palabra:
-                    guardar_palabra_individual(nueva_palabra, rid)
-                    st.rerun()
-                    
                 if st.button("🗑️ Eliminar regla completa", key=f"del_{rid}"):
                     for id_borrar in datos["ids"]: eliminar_configuracion(id_borrar)
                     st.rerun()
