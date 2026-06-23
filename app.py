@@ -56,7 +56,6 @@ else:
         st.divider()
         configuraciones = obtener_configuraciones()
         todas_respuestas = obtener_todas_las_respuestas()
-        
         agrupadas = {}
         for conf in configuraciones:
             palabra = conf['palabra_clave'].strip()
@@ -78,22 +77,31 @@ else:
     with tab2:
         st.subheader("Registrar nuevos datos de pago")
         with st.form("form_contacto", clear_on_submit=True):
-            col_a, col_b = st.columns(2)
-            ced = col_a.text_input("Cédula Esperada")
-            tel = col_b.text_input("Teléfono Esperado")
+            col_a, col_b, col_c = st.columns(3)
+            ced = col_a.text_input("Cédula")
+            tel = col_b.text_input("Teléfono")
+            monto = col_c.number_input("Monto Mínimo", min_value=0.0, step=0.1)
             if st.form_submit_button("➕ Registrar Datos"):
-                guardar_contacto(ced, tel); st.rerun()
+                try:
+                    get_supabase().table("configuracion_pago").insert({
+                        "cedula_esperada": ced,
+                        "telefono_esperado": tel,
+                        "monto_minimo": monto,
+                        "activo": False
+                    }).execute()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
         st.divider()
         st.subheader("Registros Guardados (Identidades)")
         contactos = obtener_configuracion_pagos()
-        
         for c in contactos:
             with st.container(border=True):
                 col1, col2, col3 = st.columns([3, 1, 1])
-                col1.markdown(f"**Cédula:** `{c['cedula_esperada']}`<br>**Teléfono:** `{c['telefono_esperado']}`", unsafe_allow_html=True)
+                col1.markdown(f"**Cédula:** `{c.get('cedula_esperada', 'N/A')}`<br>**Tel:** `{c.get('telefono_esperado', 'N/A')}`<br>**Monto Mín:** `{c.get('monto_minimo', 0)}`", unsafe_allow_html=True)
                 
-                if c['activo']: 
+                if c.get('activo', False): 
                     col2.success("✅ Activo")
                 else:
                     if col2.button("Activar", key=f"btn_act_{c['id']}"):
@@ -107,4 +115,5 @@ else:
                         st.error(f"Error: {e}")
 
     if st.sidebar.button("Cerrar sesión"):
-        st.session_state["logueado"] = False; st.rerun()
+        st.session_state["logueado"] = False
+        st.rerun()
