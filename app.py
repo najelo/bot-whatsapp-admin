@@ -1,6 +1,6 @@
 import streamlit as st
 from auth_utils import verificar_login, get_supabase
-from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage
+from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
@@ -16,7 +16,7 @@ if not st.session_state["logueado"]:
         else: st.error(msg)
     st.stop()
 
-# --- DIÁLOGO EDICIÓN (Diseño Profesional) ---
+# --- DIÁLOGO EDICIÓN ---
 @st.dialog("Editar Regla de Bot", width="large")
 def abrir_editor(conf):
     resp_data = conf.get('respuestas') or {}
@@ -26,43 +26,31 @@ def abrir_editor(conf):
     nueva_palabra = st.text_input("Palabra clave para el bot", value=conf.get('palabra_clave', ''))
     
     st.markdown("---")
-    st.write("#### 📂 Archivo o contenido actual")
-    if contenido_actual.startswith("http"):
-        st.success("El contenido actual es un archivo en la nube:")
-        st.markdown(f"[{contenido_actual}]({contenido_actual})")
-    else:
-        st.warning("El contenido actual es texto:")
-        st.code(contenido_actual)
+    st.write("#### 📂 Archivo actual")
+    st.markdown(f"[{contenido_actual}]({contenido_actual})")
     st.markdown("---")
     
     col_select, col_upload = st.columns(2)
     with col_select:
-        st.write("#### 📋 Seleccionar del Almacenamiento")
         archivos = listar_archivos_storage()
-        seleccion = st.selectbox("Elige un archivo guardado:", ["-- Mantener actual --"] + archivos)
-    
+        seleccion = st.selectbox("Cambiar por:", ["-- Mantener actual --"] + archivos)
     with col_upload:
-        st.write("#### 📤 Subir archivo NUEVO")
-        nuevo_archivo = st.file_uploader("Arrastra tu PDF aquí", type=["pdf"])
+        nuevo_archivo = st.file_uploader("Subir archivo NUEVO", type=["pdf"])
     
-    if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
-        try:
-            if nuevo_archivo:
-                final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name)
-            elif seleccion != "-- Mantener actual --":
-                final_content = get_supabase().storage.from_("recetarios-helado").get_public_url(seleccion)
-            else:
-                final_content = contenido_actual
-            
-            get_supabase().table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
-            get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
-            
-            st.toast("¡Cambios guardados con éxito!", icon="✅")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error al procesar: {e}")
+    col_save, col_del = st.columns([3, 1])
+    with col_save:
+        if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
+            try:
+                final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else (get_supabase().storage.from_("recetarios-helado").get_public_url(seleccion) if seleccion != "-- Mantener actual --" else contenido_actual)
+                get_supabase().table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
+                get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
+                st.toast("Guardado", icon="✅"); st.rerun()
+            except Exception as e: st.error(f"Error: {e}")
+    with col_del:
+        if st.button("🗑️ Borrar", use_container_width=True):
+            if eliminar_regla(conf['id'], resp_data['id']): st.rerun()
 
-# --- PANTALLA PRINCIPAL ---
+# --- PANTALLA ---
 st.title("🤖 Panel de Control"); st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
@@ -83,12 +71,8 @@ with tab1:
 
 with tab2:
     with st.form("nuevo_pago_form"):
-        st.write("### Registrar nuevo dato de pago")
-        ced = st.text_input("Cédula")
-        tel = st.text_input("Teléfono")
-        if st.form_submit_button("Registrar Pago"):
-            guardar_contacto(ced, tel); st.rerun()
-            
+        ced, tel = st.text_input("Cédula"), st.text_input("Teléfono")
+        if st.form_submit_button("Registrar Pago"): guardar_contacto(ced, tel); st.rerun()
     for c in obtener_configuracion_pagos():
         with st.container(border=True):
             st.write(f"Cédula: {c.get('cedula_esperada')} | Tel: {c.get('telefono_esperado')}")
