@@ -3,7 +3,7 @@ from auth_utils import get_supabase
 
 def obtener_configuraciones():
     try:
-        # Traemos clientes y hacemos JOIN con respuestas
+        # Hacemos JOIN con la tabla 'respuestas'
         response = get_supabase().table("clientes").select("*, respuestas(*)").execute()
         return response.data
     except Exception as e:
@@ -11,13 +11,15 @@ def obtener_configuraciones():
         return []
 
 def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="media-bot"):
-    """Sube archivos a Supabase Storage y devuelve la URL pública."""
+    """Sube cualquier archivo (img/audio/pdf) a Supabase y devuelve la URL."""
     try:
         supabase = get_supabase()
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
-        # Subida del archivo
+        
+        # Subir archivo al bucket
         supabase.storage.from_(bucket_name).upload(path=nombre_unico, file=archivo_bytes)
-        # Obtención de URL pública
+        
+        # Retornar URL pública
         return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
     except Exception as e:
         print(f"Error al subir archivo: {e}")
@@ -33,7 +35,7 @@ def guardar_configuracion(palabra_clave, contenido):
         
         # 2. Crear cliente vinculado
         supabase.table("clientes").insert({
-            "palabra_clave": palabra_clave.lower(),
+            "palabra_clave": palabra_clave.lower().strip(),
             "respuesta_id": nueva_respuesta_id
         }).execute()
         return True
