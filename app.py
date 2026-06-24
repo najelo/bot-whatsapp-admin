@@ -1,6 +1,6 @@
 import streamlit as st
 from auth_utils import verificar_login, get_supabase
-from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage
+from db_utils import obtener_configuraciones, guardar_configuracion
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
@@ -9,53 +9,48 @@ st.set_page_config(page_title="Admin Bot", layout="wide")
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
 if not st.session_state["logueado"]:
     st.title("🔐 Iniciar Sesión")
-    user, pwd = st.text_input("Usuario"), st.text_input("Contraseña", type="password")
+    user = st.text_input("Usuario")
+    pwd = st.text_input("Contraseña", type="password")
     if st.button("Entrar"):
-        valido, msg = verificar_login(user, pwd)
-        if valido: st.session_state["logueado"] = True; st.rerun()
-        else: st.error(msg)
+        if verificar_login(user, pwd)[0]: st.session_state["logueado"] = True; st.rerun()
+        else: st.error("Credenciales incorrectas")
     st.stop()
 
-# --- DIÁLOGO EDICIÓN REGLAS ---
+# --- DIÁLOGOS ---
 @st.dialog("Editar Regla")
-def abrir_editor(conf):
-    resp_data = conf.get('respuestas') or {}
-    contenido = resp_data.get('contenido', '')
+def editar_regla(conf):
+    resp = conf.get('respuestas') or {}
     st.write(f"Editando: **{conf.get('palabra_clave')}**")
-    
-    # Visor visual
-    if contenido.startswith("http"):
-        st.info("Archivo actual vinculado:")
-        st.write(f"[Abrir archivo actual]({contenido})")
-        if any(ext in contenido for ext in [".png", ".jpg", ".jpeg"]): st.image(contenido, width=200)
+    val = st.text_area("Contenido (Texto o URL)", value=resp.get('contenido', ''))
+    if st.button("Guardar Cambios"):
+        get_supabase().table("respuestas").update({"contenido": val}).eq("id", resp['id']).execute()
+        st.rerun()
 
-    st.divider()
-    st.subheader("Archivos disponibles en Storage")
-    archivos = listar_archivos_storage()
-    st.write(archivos) # Lista los que puedes usar
-    
-    nuevo_contenido = st.text_area("URL o Texto", value=contenido)
+@st.dialog("Editar Pago")
+def editar_pago(c):
+    nueva_ced = st.text_input("Cédula", value=c.get('cedula_esperada', ''))
+    nuevo_tel = st.text_input("Teléfono", value=c.get('telefono_esperado', ''))
     if st.button("Guardar"):
-        get_supabase().table("respuestas").update({"contenido": nuevo_contenido}).eq("id", resp_data['id']).execute()
+        get_supabase().table("configuracion_pago").update({"cedula_esperada": nueva_ced, "telefono_esperado": nuevo_tel}).eq("id", c['id']).execute()
         st.rerun()
 
 # --- INTERFAZ ---
-st.title("🤖 Panel de Control"); st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
-tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
+st.title("🤖 Panel de Control")
+if st.button("Cerrar sesión"): st.session_state["logueado"] = False; st.rerun()
+t1, t2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
-with tab1:
-    for conf in obtener_configuraciones():
+with t1:
+    for c in obtener_configuraciones():
         with st.container(border=True):
-            c1, c2 = st.columns([4, 1])
-            c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-            if c2.button("✏️ Editar", key=f"e_{conf['id']}"): abrir_editor(conf)
+            col1, col2 = st.columns([4, 1])
+            col1.write(f"🔑 **{c.get('palabra_clave')}**")
+            col1.code(c['respuestas']['contenido'] if c.get('respuestas') else "Sin contenido")
+            if col2.button("✏️ Editar", key=f"e_{c['id']}"): editar_regla(c)
 
-with tab2:
-    with st.form("form_pago"):
-        ced, tel = st.text_input("Cédula"), st.text_input("Teléfono")
-        if st.form_submit_button("Registrar"): guardar_contacto(ced, tel); st.rerun()
-    for c in obtener_configuracion_pagos():
+with t2:
+    for p in obtener_configuracion_pagos():
         with st.container(border=True):
-            st.write(f"Cédula: {c.get('cedula_esperada')} | Tel: {c.get('telefono_esperado')}")
-            if c.get('activo'): st.success("✅ Activo")
-            elif st.button("Activar", key=f"act_{c['id']}"): activar_contacto(c['id']); st.rerun()
+            st.write(f"Cédula: {p.get('cedula_esperada')} | Tel: {p.get('telefono_esperado')}")
+            if p.get('activo'): st.success("✅ Activo")
+            elif st.button("Activar", key=f"act_{p['id']}"): activar_contacto(p['id']); st.rerun()
+            if st.button("✏️ Editar Pago", key=f"ep_{p['id']}"): editar_pago(p)
