@@ -1,10 +1,7 @@
+import uuid
 from auth_utils import get_supabase
 
 def obtener_configuraciones():
-    """
-    Trae los datos de 'clientes' uniendo la información de 'respuestas'.
-    El 'respuestas(*)' es el JOIN que permite que app.py acceda a conf['respuestas'].
-    """
     try:
         response = get_supabase().table("clientes").select("*, respuestas(*)").execute()
         return response.data
@@ -12,26 +9,26 @@ def obtener_configuraciones():
         print(f"Error al obtener configuraciones: {e}")
         return []
 
-def guardar_configuracion(palabra_clave, contenido):
-    """
-    Guarda los datos en dos pasos: primero en 'respuestas' y luego en 'clientes'
-    para mantener la integridad relacional.
-    """
+def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name):
+    """Sube archivos (img/audio/pdf) a Supabase y devuelve la URL."""
     try:
-        # 1. Primero creamos la respuesta y obtenemos su ID
-        resp_response = get_supabase().table("respuestas").insert({
-            "contenido": contenido
-        }).execute()
-        
-        # Obtenemos el ID de la fila recién creada
-        nueva_respuesta_id = resp_response.data[0]['id']
-        
-        # 2. Guardamos en 'clientes' usando el ID de la respuesta
-        get_supabase().table("clientes").insert({
-            "palabra_clave": palabra_clave,
+        supabase = get_supabase()
+        nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
+        supabase.storage.from_(bucket_name).upload(path=nombre_unico, file=archivo_bytes)
+        return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
+    except Exception as e:
+        print(f"Error al subir: {e}")
+        return None
+
+def guardar_configuracion(palabra_clave, contenido):
+    try:
+        supabase = get_supabase()
+        res_resp = supabase.table("respuestas").insert({"contenido": contenido}).execute()
+        nueva_respuesta_id = res_resp.data[0]['id']
+        supabase.table("clientes").insert({
+            "palabra_clave": palabra_clave.lower(),
             "respuesta_id": nueva_respuesta_id
         }).execute()
-        
         return True
     except Exception as e:
         print(f"Error al guardar configuración: {e}")
