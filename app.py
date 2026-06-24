@@ -1,6 +1,6 @@
 import streamlit as st
 from auth_utils import verificar_login, get_supabase
-from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage
+from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
@@ -25,21 +25,26 @@ def abrir_editor(conf):
     st.write(f"Editando: **{conf.get('palabra_clave')}**")
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
-    # VISUALIZADOR DE ARCHIVO GUARDADO
-    st.write("### Archivo actual:")
-    if contenido_actual.startswith("http"):
-        # Esto genera un enlace directo al PDF/archivo guardado en tu Supabase
-        st.markdown(f"📄 [📂 Abrir archivo en nueva pestaña]({contenido_actual})", unsafe_allow_html=True)
-    else:
-        st.text("No hay archivo, solo texto:")
-    
     st.write("---")
-    nuevo_archivo = st.file_uploader("Subir nuevo archivo PDF para reemplazar", type=["pdf", "jpg", "png"])
-    nuevo_texto = st.text_area("O editar texto:", value=contenido_actual)
+    st.write("### Archivo actual:")
+    st.markdown(f"📄 [📂 Abrir archivo en nueva pestaña]({contenido_actual})", unsafe_allow_html=True)
+    
+    # Selector de archivos reales del bucket
+    archivos = listar_archivos_storage()
+    seleccion = st.selectbox("Cambiar por otro archivo guardado:", ["-- Mantener actual --"] + archivos)
+    
+    nuevo_archivo = st.file_uploader("O subir un archivo NUEVO:", type=["pdf"])
     
     if st.button("Guardar Cambios"):
         try:
-            final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else nuevo_texto
+            # Prioridad: 1. Archivo subido, 2. Seleccionado del bucket, 3. Mantener actual
+            if nuevo_archivo:
+                final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name)
+            elif seleccion != "-- Mantener actual --":
+                final_content = get_supabase().storage.from_("recetarios-helado").get_public_url(seleccion)
+            else:
+                final_content = contenido_actual
+            
             get_supabase().table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
             get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
             st.success("¡Guardado!")
