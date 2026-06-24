@@ -1,3 +1,4 @@
+import uuid
 from auth_utils import get_supabase
 
 def obtener_configuraciones():
@@ -10,13 +11,22 @@ def obtener_configuraciones():
 def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetarios-helado"):
     try:
         supabase = get_supabase()
-        import uuid
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
         supabase.storage.from_(bucket_name).upload(path=nombre_unico, file=archivo_bytes)
         return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
     except Exception as e:
         print(f"Error al subir: {e}")
         return None
+
+def listar_archivos_storage(bucket_name="recetarios-helado"):
+    """Lista los archivos PDF directamente desde tu bucket de Supabase."""
+    try:
+        supabase = get_supabase()
+        lista = supabase.storage.from_(bucket_name).list()
+        return [f["name"] for f in lista if f["name"].endswith(".pdf")]
+    except Exception as e:
+        print(f"Error listando archivos: {e}")
+        return []
 
 def guardar_configuracion(palabras, contenido):
     try:
