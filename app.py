@@ -16,28 +16,37 @@ if not st.session_state["logueado"]:
         else: st.error(msg)
     st.stop()
 
-# --- DIÁLOGO EDICIÓN ---
-@st.dialog("Editar Regla")
+# --- DIÁLOGO EDICIÓN (Diseño Profesional) ---
+@st.dialog("Editar Regla de Bot", width="large")
 def abrir_editor(conf):
     resp_data = conf.get('respuestas') or {}
     contenido_actual = resp_data.get('contenido', '')
     
-    st.write(f"Editando: **{conf.get('palabra_clave')}**")
-    nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
+    st.markdown(f"### ✏️ Editando: `{conf.get('palabra_clave')}`")
+    nueva_palabra = st.text_input("Palabra clave para el bot", value=conf.get('palabra_clave', ''))
     
-    st.write("---")
-    st.write("### Archivo actual:")
-    st.markdown(f"📄 [📂 Abrir archivo en nueva pestaña]({contenido_actual})", unsafe_allow_html=True)
+    st.markdown("---")
+    st.write("#### 📂 Archivo o contenido actual")
+    if contenido_actual.startswith("http"):
+        st.success("El contenido actual es un archivo en la nube:")
+        st.markdown(f"[{contenido_actual}]({contenido_actual})")
+    else:
+        st.warning("El contenido actual es texto:")
+        st.code(contenido_actual)
+    st.markdown("---")
     
-    # Selector de archivos reales del bucket
-    archivos = listar_archivos_storage()
-    seleccion = st.selectbox("Cambiar por otro archivo guardado:", ["-- Mantener actual --"] + archivos)
+    col_select, col_upload = st.columns(2)
+    with col_select:
+        st.write("#### 📋 Seleccionar del Almacenamiento")
+        archivos = listar_archivos_storage()
+        seleccion = st.selectbox("Elige un archivo guardado:", ["-- Mantener actual --"] + archivos)
     
-    nuevo_archivo = st.file_uploader("O subir un archivo NUEVO:", type=["pdf"])
+    with col_upload:
+        st.write("#### 📤 Subir archivo NUEVO")
+        nuevo_archivo = st.file_uploader("Arrastra tu PDF aquí", type=["pdf"])
     
-    if st.button("Guardar Cambios"):
+    if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
         try:
-            # Prioridad: 1. Archivo subido, 2. Seleccionado del bucket, 3. Mantener actual
             if nuevo_archivo:
                 final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name)
             elif seleccion != "-- Mantener actual --":
@@ -47,10 +56,11 @@ def abrir_editor(conf):
             
             get_supabase().table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
             get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
-            st.success("¡Guardado!")
+            
+            st.toast("¡Cambios guardados con éxito!", icon="✅")
             st.rerun()
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error al procesar: {e}")
 
 # --- PANTALLA PRINCIPAL ---
 st.title("🤖 Panel de Control"); st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
