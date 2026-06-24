@@ -16,7 +16,7 @@ if not st.session_state["logueado"]:
         else: st.error(msg)
     st.stop()
 
-# --- DIÁLOGO EDICIÓN (Visualizador) ---
+# --- DIÁLOGO EDICIÓN ---
 @st.dialog("Editar Regla")
 def abrir_editor(conf):
     resp_data = conf.get('respuestas') or {}
@@ -25,13 +25,17 @@ def abrir_editor(conf):
     st.write(f"Editando: **{conf.get('palabra_clave')}**")
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
-    # Visualizador de archivo existente
+    # VISUALIZADOR DE ARCHIVO GUARDADO
+    st.write("### Archivo actual:")
     if contenido_actual.startswith("http"):
-        st.write("### Vista previa:")
-        st.markdown(f"[📂 Abrir archivo actual]({contenido_actual})")
+        # Esto genera un enlace directo al PDF/archivo guardado en tu Supabase
+        st.markdown(f"📄 [📂 Abrir archivo en nueva pestaña]({contenido_actual})", unsafe_allow_html=True)
+    else:
+        st.text("No hay archivo, solo texto:")
     
-    nuevo_archivo = st.file_uploader("Subir nuevo archivo para reemplazar", type=["pdf", "jpg", "png"])
-    nuevo_texto = st.text_area("O editar contenido (texto):", value=contenido_actual)
+    st.write("---")
+    nuevo_archivo = st.file_uploader("Subir nuevo archivo PDF para reemplazar", type=["pdf", "jpg", "png"])
+    nuevo_texto = st.text_area("O editar texto:", value=contenido_actual)
     
     if st.button("Guardar Cambios"):
         try:
@@ -48,11 +52,11 @@ st.title("🤖 Panel de Control"); st.button("Cerrar sesión", on_click=lambda: 
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
 with tab1:
-    with st.form("nueva_regla_form"):
+    with st.expander("➕ Nueva Regla"):
         palabras = st.text_input("Palabra clave")
         archivo = st.file_uploader("Subir archivo")
         res_texto = st.text_area("Respuesta texto")
-        if st.form_submit_button("Guardar Nueva Regla"):
+        if st.button("Guardar"):
             cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
             if cont: guardar_configuracion(palabras, cont); st.rerun()
     
