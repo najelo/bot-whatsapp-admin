@@ -1,5 +1,4 @@
 import streamlit as st
-import uuid
 from auth_utils import verificar_login, get_supabase
 from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
@@ -28,15 +27,12 @@ def abrir_editor(conf):
     
     st.info(f"🔗 Archivo/Contenido actual: `{contenido_actual}`")
     
-    # Opción para reemplazar
-    nuevo_archivo = st.file_uploader("Subir nuevo archivo para reemplazar el anterior", type=["pdf", "jpg", "png"])
+    nuevo_archivo = st.file_uploader("Subir nuevo archivo para reemplazar", type=["pdf", "jpg", "png"])
     nuevo_texto = st.text_area("O editar contenido (texto):", value=contenido_actual)
     
     if st.button("Guardar Cambios"):
         try:
-            # Si se sube archivo, sobrescribe el contenido
             final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else nuevo_texto
-            
             get_supabase().table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
             get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
             st.success("¡Guardado!")
@@ -49,11 +45,11 @@ st.title("🤖 Panel de Control"); st.button("Cerrar sesión", on_click=lambda: 
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
 with tab1:
-    with st.expander("➕ Nueva Regla"):
+    with st.form("nueva_regla_form"):
         palabras = st.text_input("Palabra clave")
         archivo = st.file_uploader("Subir archivo")
         res_texto = st.text_area("Respuesta texto")
-        if st.button("Guardar"):
+        if st.form_submit_button("Guardar Nueva Regla"):
             cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
             if cont: guardar_configuracion(palabras, cont); st.rerun()
     
@@ -64,6 +60,13 @@ with tab1:
             if c2.button("✏️ Editar", key=f"edit_{conf['id']}"): abrir_editor(conf)
 
 with tab2:
+    with st.form("nuevo_pago_form"):
+        st.write("### Registrar nuevo dato de pago")
+        ced = st.text_input("Cédula")
+        tel = st.text_input("Teléfono")
+        if st.form_submit_button("Registrar Pago"):
+            guardar_contacto(ced, tel); st.rerun()
+            
     for c in obtener_configuracion_pagos():
         with st.container(border=True):
             st.write(f"Cédula: {c.get('cedula_esperada')} | Tel: {c.get('telefono_esperado')}")
