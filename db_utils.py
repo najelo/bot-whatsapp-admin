@@ -3,7 +3,6 @@ from auth_utils import get_supabase
 
 def obtener_configuraciones():
     try:
-        # Traemos clientes y hacemos JOIN con respuestas
         response = get_supabase().table("clientes").select("*, respuestas(*)").execute()
         return response.data
     except Exception as e:
