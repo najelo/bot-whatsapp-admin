@@ -1,34 +1,44 @@
-import uuid
+import streamlit as st
+from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage
+from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 from auth_utils import get_supabase
 
-def obtener_configuraciones():
-    try:
-        response = get_supabase().table("clientes").select("*, respuestas(*)").execute()
-        return response.data
-    except Exception as e:
-        print(f"Error al obtener configuraciones: {e}")
-        return []
+st.set_page_config(page_title="Admin Bot", layout="wide")
 
-def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="media-bot"):
-    try:
-        supabase = get_supabase()
-        nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
-        supabase.storage.from_(bucket_name).upload(path=nombre_unico, file=archivo_bytes)
-        return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
-    except Exception as e:
-        print(f"Error al subir archivo: {e}")
-        return None
+# Diálogos de edición (se mantienen igual)
+@st.dialog("Editar Regla")
+def abrir_editor(conf):
+    resp_data = conf.get('respuestas') or {}
+    contenido_actual = resp_data.get('contenido', '')
+    nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
+    
+    # Vista previa
+    if isinstance(contenido_actual, str) and contenido_actual.startswith("http"):
+        st.write("Vista previa multimedia activa")
+    
+    nuevo_contenido = st.text_area("Contenido", value=contenido_actual)
+    if st.button("Guardar Cambios"):
+        get_supabase().table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
+        get_supabase().table("respuestas").update({"contenido": nuevo_contenido}).eq("id", resp_data['id']).execute()
+        st.rerun()
 
-def guardar_configuracion(palabra_clave, contenido):
-    try:
-        supabase = get_supabase()
-        res_resp = supabase.table("respuestas").insert({"contenido": contenido}).execute()
-        nueva_respuesta_id = res_resp.data[0]['id']
-        supabase.table("clientes").insert({
-            "palabra_clave": palabra_clave.lower().strip(),
-            "respuesta_id": nueva_respuesta_id
-        }).execute()
-        return True
-    except Exception as e:
-        print(f"Error al guardar configuración: {e}")
-        return False
+st.title("🤖 Panel de Control")
+tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
+
+with tab1:
+    # Depuración: Ver si hay datos
+    datos = obtener_configuraciones()
+    if not datos:
+        st.warning("⚠️ No se encontraron reglas. Verifica que la tabla 'clientes' tenga datos vinculados a 'respuestas'.")
+    
+    for conf in datos:
+        with st.container(border=True):
+            col1, col2 = st.columns([4, 1])
+            col1.write(f"🔑 **{conf.get('palabra_clave')}**")
+            if col2.button("✏️ Editar", key=f"edit_{conf['id']}"): abrir_editor(conf)
+
+with tab2:
+    for c in obtener_configuracion_pagos():
+        with st.container(border=True):
+            st.write(f"Cédula: {c.get('cedula_esperada')}")
+            # ... resto del código de pagos
