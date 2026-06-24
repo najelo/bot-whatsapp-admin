@@ -9,6 +9,7 @@ tab1, tab2 = st.tabs(["⚙️ Bot (Reglas)", "💳 Pagos"])
 
 with tab1:
     st.subheader("Nueva Regla Multimedia")
+    # Selector de tipo de contenido
     tipo = st.radio("¿Qué deseas subir?", ["Texto", "Imagen", "Audio", "PDF"])
     
     with st.form("form_regla", clear_on_submit=True):
@@ -17,16 +18,20 @@ with tab1:
         if tipo == "Texto":
             res = st.text_area("Respuesta")
             if st.form_submit_button("Guardar Texto"):
-                guardar_configuracion(palabra, res); st.rerun()
+                if palabra:
+                    guardar_configuracion(palabra, res); st.rerun()
         else:
+            # Selector de archivo
             archivo = st.file_uploader("Sube el archivo", type=["jpg", "png", "mp3", "ogg", "pdf"])
             if st.form_submit_button("Guardar Multimedia"):
-                if archivo:
+                if archivo and palabra:
                     url = subir_archivo_al_storage(archivo.getvalue(), archivo.name)
                     if url:
                         guardar_configuracion(palabra, url)
                         st.success("Archivo subido con éxito")
                         st.rerun()
+                    else:
+                        st.error("Error al subir archivo al Storage")
 
     st.divider()
     st.subheader("Reglas Activas")
