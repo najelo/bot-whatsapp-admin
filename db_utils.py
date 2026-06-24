@@ -5,7 +5,7 @@ def obtener_configuraciones():
     try:
         return get_supabase().table("clientes").select("id, palabra_clave, respuesta_id, respuestas(id, contenido)").execute().data
     except Exception as e:
-        print(f"Error al obtener configuraciones: {e}")
+        print(f"Error al obtener: {e}")
         return []
 
 def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetarios-helado"):
@@ -19,14 +19,10 @@ def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetar
         return None
 
 def listar_archivos_storage(bucket_name="recetarios-helado"):
-    """Lista los archivos PDF directamente desde tu bucket de Supabase."""
     try:
-        supabase = get_supabase()
-        lista = supabase.storage.from_(bucket_name).list()
+        lista = get_supabase().storage.from_(bucket_name).list()
         return [f["name"] for f in lista if f["name"].endswith(".pdf")]
-    except Exception as e:
-        print(f"Error listando archivos: {e}")
-        return []
+    except Exception: return []
 
 def guardar_configuracion(palabras, contenido):
     try:
@@ -34,9 +30,14 @@ def guardar_configuracion(palabras, contenido):
         res = supabase.table("respuestas").insert({"contenido": contenido}).execute()
         rid = res.data[0]['id']
         for p in [p.strip() for p in palabras.split(',')]:
-            if p:
-                supabase.table("clientes").insert({"palabra_clave": p.lower(), "respuesta_id": rid}).execute()
+            if p: supabase.table("clientes").insert({"palabra_clave": p.lower(), "respuesta_id": rid}).execute()
         return True
-    except Exception as e:
-        print(f"Error al guardar: {e}")
-        return False
+    except: return False
+
+def eliminar_regla(cliente_id, respuesta_id):
+    try:
+        supabase = get_supabase()
+        supabase.table("clientes").delete().eq("id", cliente_id).execute()
+        supabase.table("respuestas").delete().eq("id", respuesta_id).execute()
+        return True
+    except: return False
