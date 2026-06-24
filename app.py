@@ -16,7 +16,7 @@ if not st.session_state["logueado"]:
         else: st.error(msg)
     st.stop()
 
-# --- DIÁLOGO EDICIÓN (Con Visualizador) ---
+# --- DIÁLOGO EDICIÓN (Visualizador) ---
 @st.dialog("Editar Regla")
 def abrir_editor(conf):
     resp_data = conf.get('respuestas') or {}
@@ -25,22 +25,13 @@ def abrir_editor(conf):
     st.write(f"Editando: **{conf.get('palabra_clave')}**")
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
-    # Visualizador Inteligente
-    st.write("---")
+    # Visualizador de archivo existente
     if contenido_actual.startswith("http"):
         st.write("### Vista previa:")
-        if any(ext in contenido_actual for ext in [".jpg", ".png", ".jpeg"]):
-            st.image(contenido_actual, use_column_width=True)
-        elif ".pdf" in contenido_actual:
-            st.markdown(f"[📂 Abrir PDF en nueva pestaña]({contenido_actual})")
-        elif any(ext in contenido_actual for ext in [".mp3", ".ogg", ".wav"]):
-            st.audio(contenido_actual)
-        else:
-            st.code(contenido_actual)
-    st.write("---")
+        st.markdown(f"[📂 Abrir archivo actual]({contenido_actual})")
     
-    nuevo_archivo = st.file_uploader("Subir nuevo archivo para reemplazar", type=["pdf", "jpg", "png", "mp3"])
-    nuevo_texto = st.text_area("O editar texto:", value=contenido_actual)
+    nuevo_archivo = st.file_uploader("Subir nuevo archivo para reemplazar", type=["pdf", "jpg", "png"])
+    nuevo_texto = st.text_area("O editar contenido (texto):", value=contenido_actual)
     
     if st.button("Guardar Cambios"):
         try:
