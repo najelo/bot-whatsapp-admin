@@ -15,20 +15,53 @@ def obtener_configuraciones():
         print(f"Error al obtener configuraciones: {e}")
         return []
 
-def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetarios-helado"):
+def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-helado"):
     """
-    Sube un archivo binario al bucket de Supabase Storage de manera correcta
-    forzando la cabecera 'application/pdf' para evitar corrupciones.
+    Sube cualquier archivo multimedia (PDF, Imagen, Video, Audio) detectando
+    su extensión para inyectar el Content-Type correcto en Supabase.
     """
     try:
         supabase = get_supabase()
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
         
-        # Pasamos las opciones con el diccionario correcto que espera el SDK de Supabase
+        # 1. Extraemos de forma segura los bytes del archivo según su origen
+        if hasattr(archivo, "getvalue"):
+            datos_binarios = archivo.getvalue()
+        elif isinstance(archivo, bytes):
+            datos_binarios = archivo
+        else:
+            datos_binarios = archivo.read()
+            
+        # 2. Diccionario de mapeo dinámico para Content-Type basado en la extensión
+        ext = nombre_archivo.split('.')[-1].lower()
+        
+        mapeo_tipos = {
+            # Documentos
+            "pdf": "application/pdf",
+            # Imágenes
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            # Videos
+            "mp4": "video/mp4",
+            # Audios / Notas de voz
+            "mp3": "audio/mpeg",
+            "wav": "audio/wav",
+            "ogg": "audio/ogg",
+            "m4a": "audio/x-m4a"
+        }
+        
+        # Si la extensión no se encuentra, usamos un formato binario estándar seguro
+        content_type_detectado = mapeo_tipos.get(ext, "application/octet-stream")
+        
+        # Definimos las propiedades de metadatos para Supabase
+        opciones = {"content-type": content_type_detectado}
+        
+        # 3. Ejecutamos la carga binaria con su tipo multimedia correspondiente
         supabase.storage.from_(bucket_name).upload(
             path=nombre_unico, 
-            file=archivo_bytes,
-            file_options={"content-type": "application/pdf"}
+            file=datos_binarios,
+            file_options=opciones
         )
         return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
     except Exception as e:
@@ -51,7 +84,7 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     try:
         supabase = get_supabase()
         
-        # Alerta informativa temporal para confirmar que el código nuevo está corriendo
+        # Alerta informativa en la interfaz
         st.toast(f"🔄 Procesando tipo: {tipo_contenido}...", icon="📥")
         
         # 1. Insertamos la respuesta con su respectivo tipo de contenido
@@ -75,7 +108,6 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
                 }).execute()
         return True
     except Exception as e:
-        # Muestra el error real en pantalla si algo falla en el backend
         st.error(f"❌ Error interno de Supabase: {e}")
         return False
 
