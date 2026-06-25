@@ -16,11 +16,23 @@ def obtener_configuraciones():
         return []
 
 def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetarios-helado"):
-    """Sube un archivo binario al bucket de Supabase Storage y retorna su URL pública."""
+    """
+    Sube un archivo binario al bucket de Supabase Storage 
+    FORZANDO el Content-Type correcto para que WhatsApp lo reconozca como PDF nativo.
+    """
     try:
         supabase = get_supabase()
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
-        supabase.storage.from_(bucket_name).upload(path=nombre_unico, file=archivo_bytes)
+        
+        # --- AQUÍ ESTÁ EL TRUCO DEFINITIVO ---
+        # Forzamos a que Supabase guarde el archivo con metadatos de PDF reales
+        file_options = {"content-type": "application/pdf"}
+        
+        supabase.storage.from_(bucket_name).upload(
+            path=nombre_unico, 
+            file=archivo_bytes,
+            file_options=file_options  # Se pasan las opciones con el tipo MIME correcto
+        )
         return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
     except Exception as e:
         print(f"Error al subir archivo al Storage: {e}")
@@ -66,7 +78,7 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
                 }).execute()
         return True
     except Exception as e:
-        # ¡ESTO MOSTRARÁ EL ERROR REAL EN PANTALLA SI ALGO FALLA EN EL BACKEND!
+        # Muestra el error real en pantalla si algo falla en el backend
         st.error(f"❌ Error interno de Supabase: {e}")
         return False
 
