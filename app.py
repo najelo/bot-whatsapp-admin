@@ -30,7 +30,7 @@ def abrir_editor(conf):
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
     st.markdown("---")
-    st.write(f"#### 📂 Contenido Actual ({tipo_actual.upper()})")
+    st.write(f"#### 📂 Contenido Actual ({str(tipo_actual).upper()})")
     if contenido_actual.startswith("http"):
         if tipo_actual == "audio":
             st.audio(contenido_actual)
@@ -62,7 +62,6 @@ def abrir_editor(conf):
                 st.error(f"Error al actualizar: {e}")
                 
     with col_del:
-        # RESTAURADO: Botón de borrar regla completo
         if st.button("🗑️ Borrar Mensaje", use_container_width=True, type="secondary"):
             if eliminar_regla(conf['id'], resp_data['id']): 
                 st.toast("Mensaje eliminado", icon="🗑️")
@@ -75,7 +74,7 @@ st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=Fa
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
 # =========================================================
-# TAB 1: REGLAS
+# TAB 1: REGLAS EN CADENA
 # =========================================================
 with tab1:
     st.subheader("⚙️ Configuración de Respuestas Automáticas")
@@ -146,7 +145,7 @@ with tab1:
                 
                 for idx, item in enumerate(items):
                     resp_data = item.get('respuestas') or {}
-                    tipo_badge = resp_data.get('tipo_contenido', 'texto').upper()
+                    tipo_badge = str(resp_data.get('tipo_contenido', 'texto')).upper()
                     cont_preview = resp_data.get('contenido', '')
                     
                     col_detalles, col_boton = st.columns([5, 1])
@@ -203,9 +202,9 @@ with tab2:
                             col_b1, col_b2 = st.columns(2)
                             with col_b1:
                                 if st.button("⚡ Activar", key=f"act_{c['id']}", use_container_width=True):
-                                    activar_contacto(c['id']); st.rerun()
+                                    activar_contacto(c['id'])
+                                    st.rerun()
                             with col_b2:
-                                # RESTAURADO: Botón para eliminar contacto de pago usando consulta directa
                                 if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary", help="Eliminar permanentemente"):
                                     try:
                                         get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
