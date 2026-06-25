@@ -35,7 +35,7 @@ def abrir_editor(conf):
         archivos = listar_archivos_storage()
         seleccion = st.selectbox("Cambiar por:", ["-- Mantener actual --"] + archivos)
     with col_upload:
-        # CORREGIDO: Se cerró correctamente el paréntesis de st.file_uploader al final de la línea
+        # SE MODIFICÓ AQUÍ: Permitir cambiar el archivo viejo por audios nativos .opus/.ogg
         nuevo_archivo = st.file_uploader("Subir archivo NUEVO", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
     
     col_save, col_del = st.columns([3, 1])
@@ -58,7 +58,7 @@ tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 with tab1:
     with st.expander("➕ Nueva Regla"):
         palabras = st.text_input("Palabra clave")
-        # CORREGIDO: Se cerró correctamente el paréntesis de st.file_uploader al final de la línea
+        # SE MODIFICÓ AQUÍ: Permitir formatos multimedia y audios en la creación primaria
         archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
         res_texto = st.text_area("Respuesta texto")
         if st.button("Guardar"):
