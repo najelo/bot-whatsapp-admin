@@ -1,4 +1,5 @@
 import uuid
+import io
 import streamlit as st
 from auth_utils import get_supabase
 
@@ -17,23 +18,25 @@ def obtener_configuraciones():
 
 def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-helado"):
     """
-    Sube cualquier archivo multimedia (PDF, Imagen, Video, Audio) detectando
-    su extensión exacta para inyectar el Content-Type correcto en Supabase.
-    Sostiene formatos de audio nativos de WhatsApp como .opus.
+    Sube cualquier archivo multimedia (PDF, Imagen, Video, Audio) reconstruyendo
+    un flujo de bytes limpio para evitar corrupciones en Streamlit, e inyectando
+    el Content-Type exacto que exige WhatsApp.
     """
     try:
         supabase = get_supabase()
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
         
-        # 1. Extraemos de forma segura los bytes del archivo según su origen
+        # 1. Extracción y reconstrucción segura de bytes usando un búfer independiente
         if hasattr(archivo, "getvalue"):
-            datos_binarios = archivo.getvalue()
+            objeto_bytes = io.BytesIO(archivo.getvalue())
         elif isinstance(archivo, bytes):
-            datos_binarios = archivo
+            objeto_bytes = io.BytesIO(archivo)
         else:
-            datos_binarios = archivo.read()
+            objeto_bytes = io.BytesIO(archivo.read())
             
-        # 2. Diccionario extendido de mapeo dinámico para Content-Type
+        datos_binarios = objeto_bytes.read()
+            
+        # 2. Diccionario estricto de mapeo multimedia por extensión
         ext = nombre_archivo.split('.')[-1].lower()
         
         mapeo_tipos = {
@@ -59,13 +62,10 @@ def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-he
             "amr": "audio/amr"
         }
         
-        # Si no reconoce la extensión, asigna un binario genérico seguro
         content_type_detectado = mapeo_tipos.get(ext, "application/octet-stream")
-        
-        # Definimos las propiedades de metadatos para Supabase
         opciones = {"content-type": content_type_detectado}
         
-        # 3. Ejecutamos la carga binaria con su tipo multimedia correspondiente
+        # 3. Envío del flujo binario sano a Supabase
         supabase.storage.from_(bucket_name).upload(
             path=nombre_unico, 
             file=datos_binarios,
@@ -86,15 +86,22 @@ def listar_archivos_storage(bucket_name="recetarios-helado"):
 
 def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     """
-    Guarda una respuesta especificando su tipo (texto, documento, multimedia, audio)
-    Muestra el error real en la interfaz de Streamlit si la inserción falla.
+    Guarda una respuesta especificando su tipo.
+    Verifica de antemano la existencia de la palabra para prevenir caídas de clave única.
     """
     try:
         supabase = get_supabase()
-        
-        # Alerta informativa en la interfaz
         st.toast(f"🔄 Procesando tipo: {tipo_contenido}...", icon="📥")
         
+        # Validación de duplicados preventiva en Streamlit para evitar romper la UI
+        palabras_lista = [p.strip().lower() for p in palabras.split(',') if p.strip()]
+        
+        for p in palabras_lista:
+            existente = supabase.table("clientes").select("id").eq("palabra_clave", p).execute().data
+            if existente:
+                st.error(f"⚠️ La palabra clave '{p}' ya está asignada a otra regla activa. Elimínala primero abajo.")
+                return False
+
         # 1. Insertamos la respuesta con su respectivo tipo de contenido
         res = supabase.table("respuestas").insert({
             "contenido": contenido,
@@ -107,13 +114,12 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
             
         rid = res.data[0]['id']
         
-        # 2. Procesamos e insertamos cada palabra clave por separado
-        for p in [p.strip().lower() for p in palabras.split(',')]:
-            if p: 
-                supabase.table("clientes").insert({
-                    "palabra_clave": p, 
-                    "respuesta_id": rid  
-                }).execute()
+        # 2. Insertamos la palabra de manera segura
+        for p in palabras_lista:
+            supabase.table("clientes").insert({
+                "palabra_clave": p, 
+                "respuesta_id": rid  
+            }).execute()
         return True
     except Exception as e:
         st.error(f"❌ Error interno de Supabase: {e}")
