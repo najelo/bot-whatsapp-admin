@@ -1,4 +1,5 @@
 import uuid
+import streamlit as st
 from auth_utils import get_supabase
 
 def obtener_configuraciones():
@@ -36,10 +37,13 @@ def listar_archivos_storage(bucket_name="recetarios-helado"):
 def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     """
     Guarda una respuesta especificando su tipo (texto, documento, multimedia, audio)
-    y la enlaza a las palabras clave correspondientes usando la columna 'respuesta_id'.
+    Muestra el error real en la interfaz de Streamlit si la inserción falla.
     """
     try:
         supabase = get_supabase()
+        
+        # Alerta informativa temporal para confirmar que el código nuevo está corriendo
+        st.toast(f"🔄 Procesando tipo: {tipo_contenido}...", icon="📥")
         
         # 1. Insertamos la respuesta con su respectivo tipo de contenido
         res = supabase.table("respuestas").insert({
@@ -48,6 +52,7 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
         }).execute()
         
         if not res.data:
+            st.error("⚠️ Supabase procesó la solicitud pero devolvió un conjunto de datos vacío.")
             return False
             
         rid = res.data[0]['id']
@@ -61,7 +66,8 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
                 }).execute()
         return True
     except Exception as e:
-        print(f"Error crítico en base de datos al guardar configuración: {e}")
+        # ¡ESTO MOSTRARÁ EL ERROR REAL EN PANTALLA SI ALGO FALLA EN EL BACKEND!
+        st.error(f"❌ Error interno de Supabase: {e}")
         return False
 
 def eliminar_regla(cliente_id, respuesta_id):
