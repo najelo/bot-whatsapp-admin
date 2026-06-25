@@ -62,8 +62,10 @@ def abrir_editor(conf):
                 st.error(f"Error al actualizar: {e}")
                 
     with col_del:
-        if st.button("🗑️ Borrar", use_container_width=True):
+        # RESTAURADO: Botón de borrar regla completo
+        if st.button("🗑️ Borrar Mensaje", use_container_width=True, type="secondary"):
             if eliminar_regla(conf['id'], resp_data['id']): 
+                st.toast("Mensaje eliminado", icon="🗑️")
                 st.rerun()
 
 # --- PANTALLA PRINCIPAL ---
@@ -131,7 +133,6 @@ with tab1:
     if not configuraciones:
         st.info("No hay reglas registradas todavía.")
     else:
-        # Agrupamos las respuestas por palabra clave en memoria
         reglas_agrupadas = {}
         for conf in configuraciones:
             pk = conf.get('palabra_clave')
@@ -139,12 +140,10 @@ with tab1:
                 reglas_agrupadas[pk] = []
             reglas_agrupadas[pk].append(conf)
             
-        # Renderizamos las palabras agrupadas
         for palabra, items in reglas_agrupadas.items():
             with st.container(border=True):
                 st.markdown(f"🔑 Palabra clave: **`{palabra}`** *(Envía {len(items)} mensaje(s) en cadena)*")
                 
-                # Desplegar los mensajes de esa palabra
                 for idx, item in enumerate(items):
                     resp_data = item.get('respuestas') or {}
                     tipo_badge = resp_data.get('tipo_contenido', 'texto').upper()
@@ -161,7 +160,7 @@ with tab1:
                         else:
                             st.write(f"💬 {cont_preview}")
                     with col_boton:
-                        if st.button("✏️ Editar", key=f"edit_{item['id']}"):
+                        if st.button("✏️ Editar", key=f"edit_{item['id']}", use_container_width=True):
                             abrir_editor(item)
 
 # =========================================================
@@ -206,8 +205,13 @@ with tab2:
                                 if st.button("⚡ Activar", key=f"act_{c['id']}", use_container_width=True):
                                     activar_contacto(c['id']); st.rerun()
                             with col_b2:
-                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True):
-                                    from pagos_utils import eliminar_contacto
-                                    eliminar_contacto(c['id']); st.rerun()
+                                # RESTAURADO: Botón para eliminar contacto de pago usando consulta directa
+                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary", help="Eliminar permanentemente"):
+                                    try:
+                                        get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
+                                        st.toast("Registro de pago eliminado", icon="🗑️")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
                         else:
                             st.button("⚙️ En Uso", key=f"using_{c['id']}", disabled=True, use_container_width=True)
