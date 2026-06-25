@@ -26,7 +26,7 @@ def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-he
         supabase = get_supabase()
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
         
-        # 1. Extracción y reconstrucción segura de bytes usando un búfer independiente
+        # Extracción y reconstrucción segura de bytes usando un búfer independiente
         if hasattr(archivo, "getvalue"):
             objeto_bytes = io.BytesIO(archivo.getvalue())
         elif isinstance(archivo, bytes):
@@ -36,23 +36,20 @@ def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-he
             
         datos_binarios = objeto_bytes.read()
             
-        # 2. Diccionario estricto de mapeo multimedia por extensión
+        # Diccionario estricto de mapeo multimedia por extensión
         ext = nombre_archivo.split('.')[-1].lower()
         
         mapeo_tipos = {
             # Documentos
             "pdf": "application/pdf",
-            
             # Imágenes
             "png": "image/png",
             "jpg": "image/jpeg",
             "jpeg": "image/jpeg",
             "webp": "image/webp",
-            
             # Videos
             "mp4": "video/mp4",
             "3gp": "video/3gpp",
-            
             # Audios y Notas de Voz Nativas (WhatsApp usa .opus / .ogg)
             "opus": "audio/ogg; codecs=opus",
             "ogg": "audio/ogg",
@@ -65,7 +62,7 @@ def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-he
         content_type_detectado = mapeo_tipos.get(ext, "application/octet-stream")
         opciones = {"content-type": content_type_detectado}
         
-        # 3. Envío del flujo binario sano a Supabase
+        # Envío del flujo binario sano a Supabase
         supabase.storage.from_(bucket_name).upload(
             path=nombre_unico, 
             file=datos_binarios,
@@ -86,22 +83,13 @@ def listar_archivos_storage(bucket_name="recetarios-helado"):
 
 def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     """
-    Guarda una respuesta especificando su tipo.
-    Verifica de antemano la existencia de la palabra para prevenir caídas de clave única.
+    Guarda una respuesta especificando su tipo (texto, documento, multimedia, audio).
+    Permite registrar palabras repetidas para activar flujos consecutivos en cadena.
     """
     try:
         supabase = get_supabase()
         st.toast(f"🔄 Procesando tipo: {tipo_contenido}...", icon="📥")
         
-        # Validación de duplicados preventiva en Streamlit para evitar romper la UI
-        palabras_lista = [p.strip().lower() for p in palabras.split(',') if p.strip()]
-        
-        for p in palabras_lista:
-            existente = supabase.table("clientes").select("id").eq("palabra_clave", p).execute().data
-            if existente:
-                st.error(f"⚠️ La palabra clave '{p}' ya está asignada a otra regla activa. Elimínala primero abajo.")
-                return False
-
         # 1. Insertamos la respuesta con su respectivo tipo de contenido
         res = supabase.table("respuestas").insert({
             "contenido": contenido,
@@ -114,12 +102,13 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
             
         rid = res.data[0]['id']
         
-        # 2. Insertamos la palabra de manera segura
-        for p in palabras_lista:
-            supabase.table("clientes").insert({
-                "palabra_clave": p, 
-                "respuesta_id": rid  
-            }).execute()
+        # 2. Procesamos e insertamos cada palabra clave por separado (acepta duplicadas en la tabla)
+        for p in [p.strip().lower() for p in palabras.split(',')]:
+            if p: 
+                supabase.table("clientes").insert({
+                    "palabra_clave": p, 
+                    "respuesta_id": rid  
+                }).execute()
         return True
     except Exception as e:
         st.error(f"❌ Error interno de Supabase: {e}")
