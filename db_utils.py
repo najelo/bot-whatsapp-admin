@@ -17,21 +17,18 @@ def obtener_configuraciones():
 
 def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetarios-helado"):
     """
-    Sube un archivo binario al bucket de Supabase Storage 
-    FORZANDO el Content-Type correcto para que WhatsApp lo reconozca como PDF nativo.
+    Sube un archivo binario al bucket de Supabase Storage de manera correcta
+    forzando la cabecera 'application/pdf' para evitar corrupciones.
     """
     try:
         supabase = get_supabase()
         nombre_unico = f"{uuid.uuid4()}_{nombre_archivo}"
         
-        # --- AQUÍ ESTÁ EL TRUCO DEFINITIVO ---
-        # Forzamos a que Supabase guarde el archivo con metadatos de PDF reales
-        file_options = {"content-type": "application/pdf"}
-        
+        # Pasamos las opciones con el diccionario correcto que espera el SDK de Supabase
         supabase.storage.from_(bucket_name).upload(
             path=nombre_unico, 
             file=archivo_bytes,
-            file_options=file_options  # Se pasan las opciones con el tipo MIME correcto
+            file_options={"content-type": "application/pdf"}
         )
         return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
     except Exception as e:
