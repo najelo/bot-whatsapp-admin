@@ -7,7 +7,6 @@ def obtener_configuraciones():
     hacia la tabla 'respuestas' incluyendo el 'tipo_contenido'.
     """
     try:
-        # Traemos id, palabra_clave, respuesta_id y los campos correspondientes de respuestas
         return get_supabase().table("clientes").select(
             "id, palabra_clave, respuesta_id, respuestas(id, contenido, tipo_contenido)"
         ).execute().data
@@ -36,7 +35,7 @@ def listar_archivos_storage(bucket_name="recetarios-helado"):
 
 def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     """
-    Guarda una respuesta especificando su tipo (texto, documento, multimedia)
+    Guarda una respuesta especificando su tipo (texto, documento, multimedia, audio)
     y la enlaza a múltiples palabras clave normalizadas en minúsculas.
     """
     try:
@@ -58,7 +57,7 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
             if p: 
                 supabase.table("clientes").insert({
                     "palabra_clave": p, 
-                    "answer_id": rid  # Nota: En tu tabla de la imagen se llama respuesta_id o relation, usa el nombre exacto de tu FK
+                    "respuesta_id": rid
                 }).execute()
         return True
     except Exception as e:
