@@ -7,12 +7,11 @@ def obtener_configuraciones():
     hacia la tabla 'respuestas' incluyendo el 'tipo_contenido'.
     """
     try:
-        # Traemos id, palabra_clave, respuesta_id y los campos correspondientes de respuestas
         return get_supabase().table("clientes").select(
             "id, palabra_clave, respuesta_id, respuestas(id, contenido, tipo_contenido)"
         ).execute().data
     except Exception as e:
-        print(f"Error al obtener configuraciones: {e}")
+        print(f"Error al obtener: {e}")
         return []
 
 def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetarios-helado"):
@@ -23,7 +22,7 @@ def subir_archivo_al_storage(archivo_bytes, nombre_archivo, bucket_name="recetar
         supabase.storage.from_(bucket_name).upload(path=nombre_unico, file=archivo_bytes)
         return supabase.storage.from_(bucket_name).get_public_url(nombre_unico)
     except Exception as e:
-        print(f"Error al subir archivo al Storage: {e}")
+        print(f"Error al subir: {e}")
         return None
 
 def listar_archivos_storage(bucket_name="recetarios-helado"):
@@ -31,14 +30,12 @@ def listar_archivos_storage(bucket_name="recetarios-helado"):
     try:
         lista = get_supabase().storage.from_(bucket_name).list()
         return [f["name"] for f in lista if f["name"].endswith(".pdf")]
-    except Exception: 
-        return []
+    except Exception: return []
 
 def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     """
     Guarda una respuesta especificando su tipo (texto, documento, multimedia, audio)
-    y la enlaza a las palabras clave correspondientes. 
-    Permite que una misma palabra clave acumule múltiples respuestas ordenadas.
+    y la enlaza a las palabras clave correspondientes usando la FK correcta.
     """
     try:
         supabase = get_supabase()
@@ -57,9 +54,10 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
         # 2. Procesamos, limpiamos e insertamos cada palabra clave por separado
         for p in [p.strip().lower() for p in palabras.split(',')]:
             if p: 
+                # USAMOS 'respuesta_id' que es el nombre real en tu Supabase
                 supabase.table("clientes").insert({
                     "palabra_clave": p, 
-                    "respuesta_id": rid  # Enlazamos el ID de la respuesta creada
+                    "respuesta_id": rid  
                 }).execute()
         return True
     except Exception as e:
@@ -73,6 +71,4 @@ def eliminar_regla(cliente_id, respuesta_id):
         supabase.table("clientes").delete().eq("id", cliente_id).execute()
         supabase.table("respuestas").delete().eq("id", respuesta_id).execute()
         return True
-    except Exception as e:
-        print(f"Error al eliminar regla: {e}")
-        return False
+    except: return False
