@@ -6,7 +6,8 @@ from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_c
 st.set_page_config(page_title="Admin Bot", layout="wide")
 
 # --- LOGIN ---
-if "logueado" not in st.session_state: st.session_state["logueado"] = False
+if "logueado" not in st.session_state: 
+    st.session_state["logueado"] = False
 
 if not st.session_state["logueado"]:
     st.title("🔐 Iniciar Sesión")
@@ -14,7 +15,8 @@ if not st.session_state["logueado"]:
     if st.button("Entrar"):
         valido, msg = verificar_login(user, pwd)
         if valido: 
-            st.session_state["logueado"] = True; st.rerun()
+            st.session_state["logueado"] = True
+            st.rerun()
         else: 
             st.error(msg)
     st.stop()
@@ -26,7 +28,7 @@ def abrir_editor(conf):
     contenido_actual = resp_data.get('contenido', '')
     tipo_actual = resp_data.get('tipo_contenido', 'texto')
     
-    st.markdown(f"### ✏️ Editando regla: `{conf.get('palabra_clave')}`")
+    st.markdown(f"### ✏️ Editando mensaje asignado a: `{conf.get('palabra_clave')}`")
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
     st.markdown("---")
@@ -57,7 +59,8 @@ def abrir_editor(conf):
 
                 get_supabase().table("clientes").update({"palabra_clave": nueva_palabra.strip().lower()}).eq("id", conf['id']).execute()
                 get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
-                st.toast("¡Guardado!", icon="✅"); st.rerun()
+                st.toast("¡Guardado!", icon="✅")
+                st.rerun()
             except Exception as e: 
                 st.error(f"Error al actualizar: {e}")
                 
@@ -74,7 +77,7 @@ st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=Fa
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
 # =========================================================
-# TAB 1: REGLAS
+# TAB 1: REGLAS EN CADENA
 # =========================================================
 with tab1:
     st.subheader("⚙️ Configuración de Respuestas Automáticas")
@@ -176,7 +179,8 @@ with tab2:
             if st.form_submit_button("💾 Guardar y Registrar Pago", use_container_width=True, type="primary"):
                 if ced.strip() and tel.strip():
                     guardar_contacto(ced, tel)
-                    st.toast("Contacto registrado", icon="📥"); st.rerun()
+                    st.toast("Contacto registrado", icon="📥")
+                    st.rerun()
                 else:
                     st.error("Rellena ambos campos.")
 
@@ -201,12 +205,15 @@ with tab2:
                             col_b1, col_b2 = st.columns(2)
                             with col_b1:
                                 if st.button("⚡ Activar", key=f"act_{c['id']}", use_container_width=True):
-                                    activar_contacto(c['id']); st.rerun()
+                                    activar_contacto(c['id'])
+                                    st.rerun()
                             with col_b2:
-                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary"):
+                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary", help="Eliminar permanentemente"):
                                     try:
                                         get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
-                                        st.toast("Registro de pago eliminado", icon="🗑️"); st.rerun()
-                                    except Exception as e: st.error(f"Error: {e}")
+                                        st.toast("Registro de pago eliminado", icon="🗑️")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
                         else:
                             st.button("⚙️ En Uso", key=f"using_{c['id']}", disabled=True, use_container_width=True)
