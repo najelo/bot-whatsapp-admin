@@ -29,3 +29,12 @@ def activar_contacto(id_a_activar):
         return supabase.table("configuracion_pago").update({"activo": True}).eq("id", id_a_activar).execute()
     except Exception as e:
         return False, str(e)
+
+def eliminar_contacto(id_a_eliminar):
+    """Elimina físicamente un registro de pago de la tabla configuracion_pago."""
+    try:
+        get_supabase().table("configuracion_pago").delete().eq("id", id_a_eliminar).execute()
+        return True
+    except Exception as e:
+        print(f"Error al eliminar en Supabase: {e}")
+        return False
