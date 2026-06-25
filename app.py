@@ -26,7 +26,7 @@ def abrir_editor(conf):
     contenido_actual = resp_data.get('contenido', '')
     tipo_actual = resp_data.get('tipo_contenido', 'texto')
     
-    st.markdown(f"### ✏️ Editando mensaje asignado a: `{conf.get('palabra_clave')}`")
+    st.markdown(f"### ✏️ Editando regla: `{conf.get('palabra_clave')}`")
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     
     st.markdown("---")
@@ -74,7 +74,7 @@ st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=Fa
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
 # =========================================================
-# TAB 1: REGLAS EN CADENA
+# TAB 1: REGLAS
 # =========================================================
 with tab1:
     st.subheader("⚙️ Configuración de Respuestas Automáticas")
@@ -124,7 +124,7 @@ with tab1:
                     st.success("¡Regla configurada con éxito!")
                     st.rerun()
                 else:
-                    st.error("Hubo un error al guardar en la base de datos.")
+                    st.error("Hubo un error al guardar en la base de datos. Asegúrate de haber actualizado db_utils.py.")
     
     st.markdown("### 📋 Reglas Activas Actualmente")
     configuraciones = obtener_configuraciones()
@@ -176,8 +176,7 @@ with tab2:
             if st.form_submit_button("💾 Guardar y Registrar Pago", use_container_width=True, type="primary"):
                 if ced.strip() and tel.strip():
                     guardar_contacto(ced, tel)
-                    st.toast("Contacto registrado", icon="📥")
-                    st.rerun()
+                    st.toast("Contacto registrado", icon="📥"); st.rerun()
                 else:
                     st.error("Rellena ambos campos.")
 
@@ -202,15 +201,12 @@ with tab2:
                             col_b1, col_b2 = st.columns(2)
                             with col_b1:
                                 if st.button("⚡ Activar", key=f"act_{c['id']}", use_container_width=True):
-                                    activar_contacto(c['id'])
-                                    st.rerun()
+                                    activar_contacto(c['id']); st.rerun()
                             with col_b2:
-                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary", help="Eliminar permanentemente"):
+                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary"):
                                     try:
                                         get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
-                                        st.toast("Registro de pago eliminado", icon="🗑️")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error: {e}")
+                                        st.toast("Registro de pago eliminado", icon="🗑️"); st.rerun()
+                                    except Exception as e: st.error(f"Error: {e}")
                         else:
                             st.button("⚙️ En Uso", key=f"using_{c['id']}", disabled=True, use_container_width=True)
