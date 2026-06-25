@@ -18,7 +18,8 @@ def obtener_configuraciones():
 def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-helado"):
     """
     Sube cualquier archivo multimedia (PDF, Imagen, Video, Audio) detectando
-    su extensión para inyectar el Content-Type correcto en Supabase.
+    su extensión exacta para inyectar el Content-Type correcto en Supabase.
+    Sostiene formatos de audio nativos de WhatsApp como .opus.
     """
     try:
         supabase = get_supabase()
@@ -32,26 +33,33 @@ def subir_archivo_al_storage(archivo, nombre_archivo, bucket_name="recetarios-he
         else:
             datos_binarios = archivo.read()
             
-        # 2. Diccionario de mapeo dinámico para Content-Type basado en la extensión
+        # 2. Diccionario extendido de mapeo dinámico para Content-Type
         ext = nombre_archivo.split('.')[-1].lower()
         
         mapeo_tipos = {
             # Documentos
             "pdf": "application/pdf",
+            
             # Imágenes
             "png": "image/png",
             "jpg": "image/jpeg",
             "jpeg": "image/jpeg",
+            "webp": "image/webp",
+            
             # Videos
             "mp4": "video/mp4",
-            # Audios / Notas de voz
+            "3gp": "video/3gpp",
+            
+            # Audios y Notas de Voz Nativas (WhatsApp usa .opus / .ogg)
+            "opus": "audio/ogg; codecs=opus",
+            "ogg": "audio/ogg",
             "mp3": "audio/mpeg",
             "wav": "audio/wav",
-            "ogg": "audio/ogg",
-            "m4a": "audio/x-m4a"
+            "m4a": "audio/x-m4a",
+            "amr": "audio/amr"
         }
         
-        # Si la extensión no se encuentra, usamos un formato binario estándar seguro
+        # Si no reconoce la extensión, asigna un binario genérico seguro
         content_type_detectado = mapeo_tipos.get(ext, "application/octet-stream")
         
         # Definimos las propiedades de metadatos para Supabase
