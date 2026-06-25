@@ -3,7 +3,6 @@ from auth_utils import get_supabase
 
 def obtener_configuraciones():
     try:
-        # Traemos también la columna tipo_contenido desde respuestas
         return get_supabase().table("clientes").select(
             "id, palabra_clave, respuesta_id, respuestas(id, contenido, tipo_contenido)"
         ).execute().data
@@ -29,13 +28,13 @@ def listar_archivos_storage(bucket_name="recetarios-helado"):
 
 def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
     """
-    Guarda una respuesta en la base de datos.
-    Soporta múltiples mensajes secuenciales si se repite una palabra clave.
+    Guarda la respuesta incluyendo obligatoriamente el tipo_contenido 
+    para cumplir con la estructura de Supabase.
     """
     try:
         supabase = get_supabase()
         
-        # 1. Insertamos la respuesta con su tipo de contenido correspondiente
+        # 1. Insertamos incluyendo el tipo_contenido requerido por tu base de datos
         res = supabase.table("respuestas").insert({
             "contenido": contenido,
             "tipo_contenido": tipo_contenido
@@ -46,16 +45,16 @@ def guardar_configuracion(palabras, contenido, tipo_contenido="texto"):
             
         rid = res.data[0]['id']
         
-        # 2. Registramos las palabras clave asociadas
+        # 2. Enlazamos las palabras clave
         for p in [p.strip().lower() for p in palabras.split(',')]:
             if p: 
                 supabase.table("clientes").insert({
                     "palabra_clave": p, 
-                    "respuesta_id": rid  
+                    "respuesta_id": rid
                 }).execute()
         return True
     except Exception as e:
-        print(f"Error al guardar: {e}")
+        print(f"Error en inserción: {e}")
         return False
 
 def eliminar_regla(cliente_id, respuesta_id):
