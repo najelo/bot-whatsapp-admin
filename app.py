@@ -1,219 +1,109 @@
 import streamlit as st
-from auth_utils import verificar_login, get_supabase
-from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
-from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
+import db_utils
 
-st.set_page_config(page_title="Admin Bot", layout="wide")
+st.title("🎛️ Panel de Control - Respuestas Automáticas")
 
-# --- LOGIN ---
-if "logueado" not in st.session_state: 
-    st.session_state["logueado"] = False
-
-if not st.session_state["logueado"]:
-    st.title("🔐 Iniciar Sesión")
-    user, pwd = st.text_input("Usuario"), st.text_input("Contraseña", type="password")
-    if st.button("Entrar"):
-        valido, msg = verificar_login(user, pwd)
-        if valido: 
-            st.session_state["logueado"] = True
-            st.rerun()
-        else: 
-            st.error(msg)
-    st.stop()
-
-# --- DIÁLOGO EDICIÓN ---
-@st.dialog("Editar Mensaje de la Regla", width="large")
-def abrir_editor(conf):
-    resp_data = conf.get('respuestas') or {}
-    contenido_actual = resp_data.get('contenido', '')
-    tipo_actual = resp_data.get('tipo_contenido', 'texto')
+# --- FORMULARIO PARA CREAR NUEVAS REGLAS ---
+with st.expander("➕ Crear Nueva Regla de Bot", expanded=True):
+    palabras = st.text_input("Palabras clave (Sepáralas por comas si son varias. Ej: hola, inicio)")
     
-    st.markdown(f"### ✏️ Editando mensaje asignado a: `{conf.get('palabra_clave')}`")
-    nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
+    tipo_contenido = st.selectbox(
+        "¿Qué tipo de respuesta enviará el bot?",
+        ["Texto Simple 📝", "Documento PDF 📄", "Imagen / Multimedia 🖼️", "Audio / Nota de Voz 🎵"]
+    )
     
-    st.markdown("---")
-    st.write(f"#### 📂 Contenido Actual ({str(tipo_actual).upper()})")
-    if contenido_actual.startswith("http"):
-        if tipo_actual == "audio":
-            st.audio(contenido_actual)
-        else:
-            st.markdown(f"[Ver archivo adjunto]({contenido_actual})")
-    else:
-        st.text_area("Texto actual", value=contenido_actual, disabled=True)
-    st.markdown("---")
+    contenido_final = None
+    archivo_subido = None
     
-    nuevo_archivo = None
-    if tipo_actual != "texto":
-        nuevo_archivo = st.file_uploader("Subir nuevo archivo para reemplazar", type=["pdf", "png", "jpg", "jpeg", "mp4", "mp3", "wav", "ogg", "m4a"])
-    else:
-        nuevo_contenido_texto = st.text_area("Modificar texto de respuesta", value=contenido_actual)
+    # Mapeamos la selección de la interfaz con los nombres de la Base de Datos
+    tipo_db = "texto"
+    if "Documento" in tipo_contenido:
+        tipo_db = "documento"
+    elif "Multimedia" in tipo_contenido:
+        tipo_db = "multimedia"
+    elif "Audio" in tipo_contenido:
+        tipo_db = "audio"
 
-    col_save, col_del = st.columns([3, 1])
-    with col_save:
-        if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
-            try:
-                if tipo_actual != "texto":
-                    final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else contenido_actual
-                else:
-                    final_content = nuevo_contenido_texto
-
-                get_supabase().table("clientes").update({"palabra_clave": nueva_palabra.strip().lower()}).eq("id", conf['id']).execute()
-                get_supabase().table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
-                st.toast("¡Guardado!", icon="✅")
-                st.rerun()
-            except Exception as e: 
-                st.error(f"Error al actualizar: {e}")
-                
-    with col_del:
-        if st.button("🗑️ Borrar Mensaje", use_container_width=True, type="secondary"):
-            if eliminar_regla(conf['id'], resp_data['id']): 
-                st.toast("Mensaje eliminado", icon="🗑️")
-                st.rerun()
-
-# --- PANTALLA PRINCIPAL ---
-st.title("🤖 Panel de Control")
-st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
-
-tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
-
-# =========================================================
-# TAB 1: REGLAS EN CADENA
-# =========================================================
-with tab1:
-    st.subheader("⚙️ Configuración de Respuestas Automáticas")
-    
-    with st.expander("➕ Crear Nueva Regla de Bot", expanded=False):
-        palabras = st.text_input("Palabras clave (Sepáralas por comas si son varias. Ej: hola, inicio)")
+    # Renderizado dinámico según el tipo seleccionado
+    if tipo_db == "texto":
+        contenido_final = st.text_area("Escribe el mensaje de texto")
         
-        tipo_accion = st.selectbox(
-            "¿Qué tipo de respuesta enviará el bot?",
-            ["Texto Simple 📝", "Documento PDF 📄", "Multimedia (Imagen/Video) 🖼️", "Audio / Nota de Voz 🎵"]
+    elif tipo_db == "documento":
+        archivo_subido = st.file_uploader("Sube el archivo PDF", type=["pdf"])
+        
+    elif tipo_db == "multimedia":
+        archivo_subido = st.file_uploader("Sube la imagen o video", type=["png", "jpg", "jpeg", "webp", "mp4"])
+        
+    elif tipo_db == "audio":
+        # --- AQUÍ ESTÁ EL TRUCO PARA EL ERROR DE LA NOTA DE VOZ ---
+        # Añadimos explícitamente 'opus' y 'ogg' en minúsculas y mayúsculas
+        archivo_subido = st.file_uploader(
+            "Sube el audio o nota de voz", 
+            type=["mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"]
         )
-        
-        contenido_final = None
-        tipo_db = "texto"
-        
-        if tipo_accion == "Texto Simple 📝":
-            contenido_final = st.text_area("Escribe el mensaje de texto")
-            tipo_db = "texto"
-        elif tipo_accion == "Documento PDF 📄":
-            archivo_pdf = st.file_uploader("Sube el PDF", type=["pdf"])
-            if archivo_pdf:
-                with st.spinner("Subiendo PDF..."):
-                    contenido_final = subir_archivo_al_storage(archivo_pdf.getvalue(), archivo_pdf.name)
-            tipo_db = "documento"
-        elif tipo_accion == "Multimedia (Imagen/Video) 🖼️":
-            archivo_multi = st.file_uploader("Sube imagen/video", type=["png", "jpg", "jpeg", "mp4"])
-            if archivo_multi:
-                with st.spinner("Subiendo multimedia..."):
-                    contenido_final = subir_archivo_al_storage(archivo_multi.getvalue(), archivo_multi.name)
-            tipo_db = "multimedia"
-        elif tipo_accion == "Audio / Nota de Voz 🎵":
-            archivo_audio = st.file_uploader("Sube el audio", type=["mp3", "wav", "ogg", "m4a"])
-            if archivo_audio:
-                with st.spinner("Subiendo audio..."):
-                    contenido_final = subir_archivo_al_storage(archivo_audio.getvalue(), archivo_audio.name)
-            tipo_db = "audio"
 
-        st.write(" ")
-        if st.button("💾 Guardar Regla Automatizada", type="primary", use_container_width=True):
-            if not palabras.strip():
-                st.error("Ingresa al menos una palabra clave.")
-            elif not contenido_final:
-                st.error("Agrega un contenido válido para la respuesta.")
-            else:
-                exito = guardar_configuracion(palabras, contenido_final, tipo_db)
-                if exito:
-                    st.success("¡Regla configurada con éxito!")
-                    st.rerun()
-                else:
-                    st.error("Hubo un error al guardar en la base de datos. Asegúrate de haber actualizado db_utils.py.")
-    
-    st.markdown("### 📋 Reglas Activas Actualmente")
-    configuraciones = obtener_configuraciones()
-    
-    if not configuraciones:
-        st.info("No hay reglas registradas todavía.")
-    else:
-        reglas_agrupadas = {}
-        for conf in configuraciones:
-            pk = conf.get('palabra_clave')
-            if pk not in reglas_agrupadas:
-                reglas_agrupadas[pk] = []
-            reglas_agrupadas[pk].append(conf)
-            
-        for palabra, items in reglas_agrupadas.items():
-            with st.container(border=True):
-                st.markdown(f"🔑 Palabra clave: **`{palabra}`** *(Envía {len(items)} mensaje(s) en cadena)*")
-                
-                for idx, item in enumerate(items):
-                    resp_data = item.get('respuestas') or {}
-                    tipo_badge = str(resp_data.get('tipo_contenido', 'texto')).upper()
-                    cont_preview = resp_data.get('contenido', '')
-                    
-                    col_detalles, col_boton = st.columns([5, 1])
-                    with col_detalles:
-                        st.caption(f"**Paso {idx+1}:** `[{tipo_badge}]`")
-                        if cont_preview.startswith("http"):
-                            if tipo_badge == "AUDIO":
-                                st.audio(cont_preview)
-                            else:
-                                st.markdown(f"🔗 [Ver archivo público]({cont_preview})")
-                        else:
-                            st.write(f"💬 {cont_preview}")
-                    with col_boton:
-                        if st.button("✏️ Editar", key=f"edit_{item['id']}", use_container_width=True):
-                            abrir_editor(item)
-
-# =========================================================
-# TAB 2: PAGOS
-# =========================================================
-with tab2:
-    st.subheader("💳 Gestión de Pasarelas y Contactos de Pago")
-    subtab_registrar, subtab_administrar = st.tabs(["➕ Registrar Nuevo Contacto", "📂 Datos Guardados y Control"])
-    
-    with subtab_registrar:
-        with st.form("nuevo_pago_form", clear_on_submit=True):
-            ced = st.text_input("Cédula / Identificación Fiscal")
-            tel = st.text_input("Número de Teléfono (WhatsApp)")
-            if st.form_submit_button("💾 Guardar y Registrar Pago", use_container_width=True, type="primary"):
-                if ced.strip() and tel.strip():
-                    guardar_contacto(ced, tel)
-                    st.toast("Contacto registrado", icon="📥")
-                    st.rerun()
-                else:
-                    st.error("Rellena ambos campos.")
-
-    with subtab_administrar:
-        lista_pagos = obtener_configuracion_pagos()
-        if not lista_pagos:
-            st.info("No se encontraron registros de pago.")
+    # Botón de guardar acción
+    if st.button("💾 Guardar Regla Automatizada", use_container_width=True):
+        if not palabras:
+            st.warning("⚠️ Por favor escribe al menos una palabra clave.")
         else:
-            for c in lista_pagos:
-                with st.container(border=True):
-                    col_info, col_estado, col_acciones = st.columns([2, 1, 1])
-                    with col_info:
-                        st.markdown(f"**🪪 Cédula:** `{c.get('cedula_esperada')}`")
-                        st.markdown(f"**📞 Teléfono:** `{c.get('telefono_esperado')}`")
-                    with col_estado:
-                        st.write("  \n")
-                        if c.get('activo'): st.success("🟢 ACTIVO")
-                        else: st.caption("⚪ Inactivo")
-                    with col_acciones:
-                        st.write("  \n")
-                        if not c.get('activo'):
-                            col_b1, col_b2 = st.columns(2)
-                            with col_b1:
-                                if st.button("⚡ Activar", key=f"act_{c['id']}", use_container_width=True):
-                                    activar_contacto(c['id'])
-                                    st.rerun()
-                            with col_b2:
-                                if st.button("🗑️", key=f"del_{c['id']}", use_container_width=True, type="secondary", help="Eliminar permanentemente"):
-                                    try:
-                                        get_supabase().table("configuracion_pago").delete().eq("id", c['id']).execute()
-                                        st.toast("Registro de pago eliminado", icon="🗑️")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error: {e}")
-                        else:
-                            st.button("⚙️ En Uso", key=f"using_{c['id']}", disabled=True, use_container_width=True)
+            # Si requiere archivo, lo procesamos primero
+            if tipo_db in ["documento", "multimedia", "audio"]:
+                if archivo_subido is not None:
+                    st.info("⚡ Subiendo archivo multimedia a Supabase...")
+                    url_publica = db_utils.subir_archivo_al_storage(archivo_subido, archivo_subido.name)
+                    if url_publica:
+                        contenido_final = url_publica
+                    else:
+                        st.error("❌ Falló la subida del archivo al Storage de Supabase.")
+                else:
+                    st.warning("⚠️ Este tipo de regla requiere que adjuntes un archivo válido.")
+            
+            # Procedemos a guardar en las tablas correspondientes
+            if contenido_final:
+                exito = db_utils.guardar_configuracion(palabras, contenido_final, tipo_db)
+                if exito:
+                    st.success("✅ ¡Regla guardada con éxito!")
+                    st.rerun()
+            else:
+                st.error("❌ No se pudo procesar el contenido de la regla.")
+
+# --- SECCIÓN DE REGLAS ACTIVAS ---
+st.subheader("📋 Reglas Activas Actualmente")
+
+configuraciones = db_utils.obtener_configuraciones()
+
+if not configuraciones:
+    st.info("No hay reglas automatizadas configuradas todavía.")
+else:
+    for c in configuraciones:
+        # Estructura visual limpia para cada regla activa en base de datos
+        with st.container(border=True):
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f"🔑 **Palabra clave:** `{c['palabra_clave']}`")
+                
+                # Accedemos a la relación de la tabla 'respuestas'
+                info_resp = c.get('respuestas')
+                if info_resp:
+                    tipo = info_resp.get('tipo_contenido', 'texto')
+                    contenido = info_resp.get('contenido', '')
+                    st.caption(f"Tipo registrado: *{tipo.upper()}*")
+                    
+                    if tipo == "texto":
+                        st.write(f"💬 {contenido}")
+                    else:
+                        st.link_button("🔗 Ver archivo público", contenido)
+                else:
+                    st.caption("⚠️ Regla huérfana (Sin respuesta vinculada)")
+            
+            with col2:
+                # El botón de eliminar enviará los IDs correctos correspondientes a db_utils
+                if st.button("🗑️ Eliminar", key=f"del_{c['id']}", use_container_width=True):
+                    r_id = c['respuesta_id'] if c['respuesta_id'] else 0
+                    if db_utils.eliminar_regla(c['id'], r_id):
+                        st.success("Regla borrada")
+                        st.rerun()
+                    else:
+                        st.error("No se pudo eliminar")
