@@ -1,5 +1,4 @@
 import streamlit as st
-from auth_ui import gestionar_login # <-- Importamos nuestro nuevo módulo
 from db_utils import obtener_configuraciones
 from ui_reglas import render_crear_regla, render_lista_reglas
 from ui_pagos import render_pagos_tab
@@ -7,7 +6,7 @@ from ui_pagos import render_pagos_tab
 st.set_page_config(page_title="Admin Bot", layout="wide")
 
 # 1. Autenticación centralizada
-gestionar_login()
+# Aquí va tu bloque original de login tal y como lo tenías antes de mi cambio.
 
 # 2. Interfaz principal (solo se muestra si el login pasó)
 st.title("🤖 Panel de Control")
