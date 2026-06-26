@@ -2,6 +2,7 @@ import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
+from metrics_utils import obtener_metricas_del_dia
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
 
