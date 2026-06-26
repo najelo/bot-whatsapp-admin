@@ -109,7 +109,7 @@ with tab2:
                     supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
                 st.success("✅ ¡Montos de emojis actualizados exitosamente!")
                 st.rerun()
- with st.expander("nuevo_pago_form"):
+ with st.expander("nuevo_pago"):
         ced, tel = st.text_input("Cédula"), st.text_input("Teléfono")
         if st.form_submit_button("Registrar Pago"): guardar_contacto(ced, tel); st.rerun()
     except Exception as e:
