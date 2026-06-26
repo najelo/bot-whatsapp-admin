@@ -1,4 +1,4 @@
-#import streamlit as st
+import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
@@ -19,7 +19,8 @@ if not st.session_state["logueado"]:
         else: st.error(msg)
     st.stop()
 
-# --- DIÁLOGO EDICIÓN ---
+# --- DIÁLOGOS GLOBALES DE EDICIÓN ---
+
 @st.dialog("Editar Regla de Bot", width="large")
 def abrir_editor(conf):
     resp_data = conf.get('respuestas') or {}
@@ -53,10 +54,31 @@ def abrir_editor(conf):
         if st.button("🗑️ Borrar", use_container_width=True):
             if eliminar_regla(conf['id'], resp_data['id']): st.rerun()
 
-# --- PANTALLA ---
+
+@st.dialog("Editar Cuenta de Pago", width="medium")
+def abrir_editor_pago(cuenta):
+    st.markdown(f"### ✏️ Editando Receptor ID: `{cuenta.get('id')}`")
+    nueva_cedula = st.text_input("Nueva Cédula", value=cuenta.get('cedula_esperada', ''))
+    nuevo_telefono = st.text_input("Nuevo Teléfono", value=cuenta.get('telefono_esperado', ''))
+    
+    st.markdown("---")
+    if st.button("💾 Guardar Cambios Cuenta", use_container_width=True, type="primary"):
+        try:
+            supabase.table("configuracion_pago").update({
+                "cedula_esperada": nueva_cedula,
+                "telefono_esperado": nuevo_telefono
+            }).eq("id", cuenta['id']).execute()
+            st.toast("Cuenta actualizada con éxito", icon="✅")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error al actualizar: {e}")
+
+
+# --- PANTALLA PRINCIPAL ---
 st.title("🤖 Panel de Control"); st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
 tab1, tab2 = st.tabs(["⚙️ Reglas", "💳 Pagos"])
 
+# --- TAB 1: REGLAS ---
 with tab1:
     with st.expander("➕ Nueva Regla"):
         palabras = st.text_input("Palabra clave")
@@ -72,8 +94,9 @@ with tab1:
             c1.write(f"🔑 **{conf.get('palabra_clave')}**")
             if c2.button("✏️ Editar", key=f"edit_{conf['id']}"): abrir_editor(conf)
 
+# --- TAB 2: PAGOS ---
 with tab2:
-    # --- SECCIÓN 1: REGISTRO DE CUENTAS PAGO MÓVIL (ELEGANTE EN EXPANDER) ---
+    # --- SECCIÓN 1: REGISTRO DE CUENTAS PAGO MÓVIL ---
     with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
         with st.form("nuevo_pago_form"):
             ced = st.text_input("Cédula Receptor")
@@ -84,39 +107,18 @@ with tab2:
                     st.rerun()
                 else:
                     st.warning("Por favor, rellena ambos campos.") 
- 
-@st.dialog("Editar Cuenta de Pago", width="medium")
-    def abrir_editor_pago(cuenta):
-        st.markdown(f"### ✏️ Editando Receptor ID: `{cuenta.get('id')}`")
-        nueva_cedula = st.text_input("Nueva Cédula", value=cuenta.get('cedula_esperada', ''))
-        nuevo_telefono = st.text_input("Nuevo Teléfono", value=cuenta.get('telefono_esperado', ''))
-        
-        st.markdown("---")
-        if st.button("💾 Guardar Cambios Cuenta", use_container_width=True, type="primary"):
-            try:
-                supabase.table("configuracion_pago").update({
-                    "cedula_esperada": nueva_cedula,
-                    "telefono_esperado": nuevo_telefono
-                }).eq("id", cuenta['id']).execute()
-                st.toast("Cuenta actualizada con éxito", icon="✅")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al actualizar: {e}")
 
-    # --- LISTADO DE CUENTAS REGISTRADAS ---
+    # --- SECCIÓN 2: LISTADO DE CUENTAS REGISTRADAS ---
     st.write("#### 📋 Cuentas registradas")
     for c in obtener_configuracion_pagos():
         with st.container(border=True):
-            # Formateo de información principal
             st.write(f"**Cédula:** {c.get('cedula_esperada')} | **Tel:** {c.get('telefono_esperado')}")
             
-            # Estado actual de la cuenta
             if c.get('activo'): 
                 st.success("✅ Activo")
             else:
                 st.warning("💤 Inactivo")
             
-            # Fila de acciones (Activar, Editar, Eliminar)
             col_act, col_edit, col_del = st.columns([2, 1, 1])
             
             with col_act:
@@ -137,7 +139,11 @@ with tab2:
                         supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
                         st.toast("Cuenta eliminada", icon="🗑️")
                         st.rerun()
-                        st.write("---")
+                    except Exception as e:
+                        st.error(f"No se pudo eliminar: {e}")
+
+    # --- SECCIÓN 3: CONFIGURACIÓN DE MONTOS DINÁMICOS POR EMOJI ---
+    st.write("---")
     st.subheader("🖼️ Configuración de Montos por Emoji")
     st.write("Modifica el monto asignado a cada emoji con el cual la IA verificará los captures.")
 
@@ -166,5 +172,3 @@ with tab2:
 
     except Exception as e:
         st.error(f"Error al conectar con la configuración de emojis: {e}")
-                    except Exception as e:
-                        st.error(f"No se pudo eliminar: {e}")
