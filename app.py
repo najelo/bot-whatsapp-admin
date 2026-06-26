@@ -74,7 +74,7 @@ with tab1:
 
 with tab2:
     # --- SECCIÓN EXISTENTE: REGISTRO DE CUENTAS PAGO MÓVIL ---
-    with st.form("nuevo_pago_form"):
+    with st.expander("nuevo_pago_form"):
         ced, tel = st.text_input("Cédula"), st.text_input("Teléfono")
         if st.form_submit_button("Registrar Pago"): guardar_contacto(ced, tel); st.rerun()
         
