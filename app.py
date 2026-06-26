@@ -80,3 +80,36 @@ with tab2:
             st.write(f"Cédula: {c.get('cedula_esperada')} | Tel: {c.get('telefono_esperado')}")
             if c.get('activo'): st.success("✅ Activo")
             elif st.button("Activar", key=f"act_{c['id']}"): activar_contacto(c['id']); st.rerun()
+st.subheader("🖼️ Configuración de Montos por Emoji")
+st.write("Modifica el monto asignado a cada emoji con el cual la IA verificará los captures.")
+
+try:
+    # Obtener los montos actuales desde Supabase
+    query_emojis = supabase.table("montos_emojis").select("*").execute()
+    datos_emojis = {item['emoji']: float(item['monto']) for item in query_emojis.data} if query_emojis.data else {}
+    
+    # Definir los emojis por defecto si la tabla estuviera vacía
+    emojis_disponibles = ["💖", "⭐", "💎"]
+    nuevos_valores = {}
+    
+    # Crear un formulario interactivo en Streamlit
+    with st.form("form_montos_emojis"):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            nuevos_valores["💖"] = st.number_input("Monto para 💖", min_value=0.0, value=datos_emojis.get("💖", 3300.0), step=1.0)
+        with col2:
+            nuevos_valores["⭐"] = st.number_input("Monto para ⭐", min_value=0.0, value=datos_emojis.get("⭐", 20.0), step=1.0)
+        with col3:
+            nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
+            
+        guardar_montos = st.form_submit_button("Guardar Montos de Emojis")
+        
+        if guardar_montos:
+            for em, monto_nuevo in nuevos_valores.items():
+                supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
+            st.success("✅ ¡Montos de emojis actualizados exitosamente!")
+            st.rerun()
+
+except Exception as e:
+    st.error(f"Error al conectar con la configuración de emojis: {e}")
