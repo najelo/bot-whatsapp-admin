@@ -74,9 +74,7 @@ with tab1:
 
 with tab2:
     # --- SECCIÓN EXISTENTE: REGISTRO DE CUENTAS PAGO MÓVIL ---
-    with st.expander("nuevo_pago_form"):
-        ced, tel = st.text_input("Cédula"), st.text_input("Teléfono")
-        if st.form_submit_button("Registrar Pago"): guardar_contacto(ced, tel); st.rerun()
+   
         
     for c in obtener_configuracion_pagos():
         with st.container(border=True):
@@ -111,6 +109,8 @@ with tab2:
                     supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
                 st.success("✅ ¡Montos de emojis actualizados exitosamente!")
                 st.rerun()
-
+ with st.expander("nuevo_pago_form"):
+        ced, tel = st.text_input("Cédula"), st.text_input("Teléfono")
+        if st.form_submit_button("Registrar Pago"): guardar_contacto(ced, tel); st.rerun()
     except Exception as e:
         st.error(f"Error al conectar con la configuración de emojis: {e}")
