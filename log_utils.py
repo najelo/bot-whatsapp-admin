@@ -29,7 +29,7 @@ def obtener_todos_los_logs(supabase):
             {"created_at": "2026-06-25T18:22:19", "phone": "584149998877", "monto": 3300.0, "estado": "alerta"},
         ]
     try:
-        query = supabase.table("historial_pagos").select("*").order("created_at", descending=True).execute()
+   query = supabase.table("historial_pagos").select("*").order("created_at", descend=True).execute()
         return query.data if query.data else []
     except Exception as e:
         st.error(f"Error al cargar logs de Supabase: {e}")
