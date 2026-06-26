@@ -2,7 +2,7 @@ import streamlit as st
 from auth_utils import verificar_login, get_supabase
 from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
-from metrics_utils import obtener_metricas_del_dia
+from metrics_utils import obtener_metricas_del_dia  # Importación de tu nuevo archivo
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
 
@@ -103,6 +103,22 @@ with col_centro:
         st.markdown("<br>", unsafe_allow_html=True)
         st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
     
+    # 📊 SECCIÓN DE MÉTRICAS (DASHBOARD)
+    st.write("#### 📊 Actividad de Hoy")
+    metricas = obtener_metricas_del_dia()
+    
+    with st.container(border=True):
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
+        with m2:
+            st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
+        with m3:
+            color_alerta = "inverse" if int(metricas["alertas"]) > 0 else "normal"
+            st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"], delta=f"{metricas['alertas']} pendientes" if int(metricas["alertas"]) > 0 else None, delta_color=color_alerta)
+            
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     tab1, tab2 = st.tabs(["⚙️ Reglas del Bot", "💳 Gestión de Pagos"])
 
     # --- TAB 1: REGLAS ---
@@ -115,7 +131,7 @@ with col_centro:
                 res_texto = st.text_area("Respuesta texto")
                 
                 if st.form_submit_button("Guardar Regla", type="primary"):
-                    cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
+                    cont = subir_archivo_al_storage(archivo.getvalue(), file_name=archivo.name) if archivo else res_texto
                     if cont: 
                         guardar_configuracion(palabras, cont)
                         st.toast("¡Regla guardada exitosamente!", icon="✅")
@@ -216,30 +232,3 @@ with col_centro:
 
         except Exception as e:
             st.error(f"Error al conectar con la configuración de emojis: {e}")
-            # --- ESTRUCTURA DE PANTALLA CENTRADA Y COMPACTA ---
-col_izq, col_centro, col_der = st.columns([1, 4, 1])
-
-with col_centro:
-    # Encabezado compacto
-    head1, head2 = st.columns([4, 1])
-    with head1:
-        st.title("🤖 Panel de Control")
-    with head2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
-    
-    # 📊 SECCIÓN DE MÉTRICAS (DASHBOARD)
-    st.write("#### 📊 Actividad de Hoy")
-    metricas = obtener_metricas_del_dia() # 👈 Llama a tu archivo nuevo
-    
-    with st.container(border=True):
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
-        with m2:
-            st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
-        with m3:
-            color_alerta = "inverse" if int(metricas["alertas"]) > 0 else "normal"
-            st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"], delta=f"{metricas['alertas']} pendientes" if int(metricas["alertas"]) > 0 else None, delta_color=color_alerta)
-            
-    st.markdown("<br>", unsafe_allow_html=True)
