@@ -128,4 +128,78 @@ with col_centro:
                 c_ced, c_tel = st.columns(2)
                 with c_ced: ced = st.text_input("Cédula Receptor")
                 with c_tel: tel = st.text_input("Teléfono Receptor")
-                _, c_btn = st.columns(
+                _, c_btn = st.columns([2, 1])
+                with c_btn:
+                    if st.form_submit_button("Registrar Pago Móvil", use_container_width=True):
+                        if ced and tel:
+                            guardar_contacto(ced, tel)
+                            st.toast("¡Pago Móvil registrado!", icon="✅"); st.rerun()
+                        else: st.warning("Por favor, rellena ambos campos.") 
+
+        st.write("#### 📋 Cuentas Registradas (Pago Móvil)")
+        for c in obtener_configuracion_pagos():
+            with st.container(border=True):
+                inf1, inf2 = st.columns([3, 1])
+                inf1.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
+                with inf2:
+                    if c.get('activo'): st.markdown("<span style='color:#2ec4b6; font-weight:bold;'>● Activo</span>", unsafe_allow_html=True)
+                    else: st.markdown("<span style='color:#e71d36; font-weight:bold;'>● Inactivo</span>", unsafe_allow_html=True)
+                col_act, col_edit, col_del = st.columns([2, 1, 1])
+                with col_act:
+                    if not c.get('activo'):
+                        if st.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True): activar_contacto(c['id']); st.rerun()
+                    else: st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, use_container_width=True)
+                with col_edit:
+                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True): abrir_editor_pago(c)
+                with col_del:
+                    if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", use_container_width=True, type="secondary"):
+                        try:
+                            supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
+                            st.toast("Cuenta eliminada", icon="🗑️"); st.rerun()
+                        except Exception as e: st.error(f"No se pudo eliminar: {e}")
+
+        st.write("---")
+        st.subheader("🖼️ Montos de Verificación por Emoji")
+        try:
+            nuevos_valores = {}
+            query_emojis = supabase.table("montos_emojis").select("*").execute()
+            datos_emojis = {item['emoji']: float(item['monto']) for item in query_emojis.data} if query_emojis.data else {}
+            with st.form("form_montos_emojis"):
+                col1, col2, col3 = st.columns(3)
+                with col1: nuevos_valores["💖"] = st.number_input("Monto para 💖", min_value=0.0, value=datos_emojis.get("💖", 3300.0), step=1.0)
+                with col2: nuevos_valores["⭐"] = st.number_input("Monto para ⭐", min_value=0.0, value=datos_emojis.get("⭐", 20.0), step=1.0)
+                with col3: nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
+                _, c_btn_em = st.columns([2, 1])
+                with c_btn_em: guardar_montos = st.form_submit_button("💾 Guardar Montos", use_container_width=True)
+                if guardar_montos:
+                    for em, monto_nuevo in nuevos_valores.items(): supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
+                    st.success("✅ ¡Montos actualizados!"); st.rerun()
+        except Exception as e: st.error(f"Error al conectar con la configuración de emojis: {e}")
+
+    # --- TAB 3: LOGS / HISTORIAL ---
+    with tab3:
+        st.subheader("📋 Historial Completo de Verificaciones")
+        st.caption("Lecturas de comprobantes procesadas por el bot.")
+        
+        lista_logs = obtener_todos_los_logs(supabase)
+        if lista_logs:
+            pdf_data = exportar_logs_a_pdf(lista_logs)
+            st.download_button(
+                label="📥 Descargar Historial en PDF",
+                data=pdf_data,
+                file_name=f"reporte_logs_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                type="primary"
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.dataframe(
+                lista_logs, 
+                column_config={
+                    "created_at": "Fecha y Hora", "phone": "Teléfono",
+                    "monto": st.column_config.NumberColumn("Monto Procesado", format="Bs. %.2f"),
+                    "estado": "Estado del Pago"
+                },
+                use_container_width=True, hide_index=True
+            )
+        else:
+            st.info("No hay registros en el historial de logs actualmente.")
