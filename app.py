@@ -1,13 +1,30 @@
 import streamlit as st
+from datetime import datetime
 from auth_utils import verificar_login, get_supabase
 from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
-from metrics_utils import obtener_metricas_del_dia 
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
 
 # Inicializamos el cliente de Supabase usando tu import
 supabase = get_supabase()
+
+# --- LÓGICA DE DATOS (MÉTRICAS SIMULADAS PARA PRUEBAS) ---
+def obtener_metricas_del_dia():
+    """
+    Devuelve datos simulados (Mock) para evitar errores 
+    mientras se crea la tabla correspondiente en la base de datos.
+    """
+    try:
+        # Una vez que construyas la tabla en Supabase, cambiaremos esto por la consulta real
+        return {
+            "monto": "Bs. 3,320.00",  # Dato simulado
+            "procesados": "5",        # Dato simulado
+            "alertas": "0"            # Dato simulado
+        }
+    except Exception as e:
+        return {"monto": "Bs. 0.00", "procesados": "0", "alertas": "0"}
+
 
 # --- LOGIN ---
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
@@ -90,21 +107,6 @@ def abrir_editor_pago(cuenta):
         except Exception as e:
             st.error(f"Error al actualizar: {e}")
 
-def obtener_metricas_del_dia():
-    """
-    Devuelve datos simulados (Mock) para evitar errores 
-    mientras se crea la tabla en la base de datos.
-    """
-    try:
-        # Una vez que crees la tabla en Supabase, cambiaremos esto por la consulta real
-        return {
-            "monto": "Bs. 3,320.00",  # Dato simulado
-            "procesados": "5",        # Dato simulado
-            "alertas": "0"            # Dato simulado
-        }
-    except Exception as e:
-        return {"monto": "Bs. 0.00", "procesados": "0", "alertas": "0"}
-
 
 # --- ESTRUCTURA DE PANTALLA CENTRADA Y COMPACTA ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
@@ -139,7 +141,6 @@ with col_centro:
     # --- TAB 1: REGLAS ---
     with tab1:
         with st.expander("➕ Nueva Regla"):
-            # Envolvemos en un formulario con clear_on_submit=True para limpiar de forma nativa y segura
             with st.form("nueva_regla_form", border=False):
                 palabras = st.text_input("Palabra clave")
                 archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
@@ -164,7 +165,6 @@ with col_centro:
     with tab2:
         # --- SECCIÓN 1: REGISTRO DE CUENTAS PAGO MÓVIL ---
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
-            # Agregamos clear_on_submit=True aquí para solucionar tu error de raíz
             with st.form("nuevo_pago_form", border=False, clear_on_submit=True):
                 c_ced, c_tel = st.columns(2)
                 with c_ced:
