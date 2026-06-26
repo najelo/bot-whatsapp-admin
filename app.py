@@ -215,3 +215,30 @@ with col_centro:
 
         except Exception as e:
             st.error(f"Error al conectar con la configuración de emojis: {e}")
+            # --- ESTRUCTURA DE PANTALLA CENTRADA Y COMPACTA ---
+col_izq, col_centro, col_der = st.columns([1, 4, 1])
+
+with col_centro:
+    # Encabezado compacto
+    head1, head2 = st.columns([4, 1])
+    with head1:
+        st.title("🤖 Panel de Control")
+    with head2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
+    
+    # 📊 SECCIÓN DE MÉTRICAS (DASHBOARD)
+    st.write("#### 📊 Actividad de Hoy")
+    metricas = obtener_metricas_del_dia() # 👈 Llama a tu archivo nuevo
+    
+    with st.container(border=True):
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
+        with m2:
+            st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
+        with m3:
+            color_alerta = "inverse" if int(metricas["alertas"]) > 0 else "normal"
+            st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"], delta=f"{metricas['alertas']} pendientes" if int(metricas["alertas"]) > 0 else None, delta_color=color_alerta)
+            
+    st.markdown("<br>", unsafe_allow_html=True)
