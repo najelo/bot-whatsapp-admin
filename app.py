@@ -84,15 +84,16 @@ st.subheader("🖼️ Configuración de Montos por Emoji")
 st.write("Modifica el monto asignado a cada emoji con el cual la IA verificará los captures.")
 
 try:
-    # Obtener los montos actuales desde Supabase
+  st.write("---")
+
+st.subheader("🖼️ Configuración de Montos por Emoji")
+st.write("Modifica el monto asignado a cada emoji con el cual la IA verificará los captures.")
+
+try:
+    # Ahora 'supabase' ya estará definido gracias al import superior
     query_emojis = supabase.table("montos_emojis").select("*").execute()
     datos_emojis = {item['emoji']: float(item['monto']) for item in query_emojis.data} if query_emojis.data else {}
     
-    # Definir los emojis por defecto si la tabla estuviera vacía
-    emojis_disponibles = ["💖", "⭐", "💎"]
-    nuevos_valores = {}
-    
-    # Crear un formulario interactivo en Streamlit
     with st.form("form_montos_emojis"):
         col1, col2, col3 = st.columns(3)
         
