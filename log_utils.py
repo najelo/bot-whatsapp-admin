@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 
 # 🛑 CONFIGURACIÓN DE PRUEBAS: Cambia a False cuando construyas la tabla en Supabase
-MODO_MOCK = True
+MODO_MOCK = False 
 
 def obtener_metricas_del_dia(supabase):
     if MODO_MOCK:
@@ -24,7 +24,7 @@ def obtener_todos_los_logs(supabase):
         return [
             {"created_at": "2026-06-26T14:23:10", "phone": "584121234567", "monto": 3300.0, "estado": "aprobado"},
             {"created_at": "2026-06-26T15:10:02", "phone": "584249876543", "monto": 20.0, "estado": "aprobado"},
-            {"withheld": "false", "created_at": "2026-06-26T15:45:12", "phone": "584165554433", "monto": 0.0, "estado": "error"},
+            {"created_at": "2026-06-26T15:45:12", "phone": "584165554433", "monto": 0.0, "estado": "error"}, # <-- Limpiado aquí
             {"created_at": "2026-06-25T11:12:30", "phone": "584120001122", "monto": 10.0, "estado": "aprobado"},
             {"created_at": "2026-06-25T18:22:19", "phone": "584149998877", "monto": 3300.0, "estado": "alerta"},
         ]
