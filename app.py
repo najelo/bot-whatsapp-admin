@@ -98,23 +98,18 @@ with col_centro:
     # --- TAB 1: REGLAS ---
     with tab1:
         with st.expander("➕ Nueva Regla"):
-            palabras = st.text_input("Palabra clave", key="input_palabra")
-            archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"], key="input_archivo")
-            res_texto = st.text_area("Respuesta texto", key="input_texto")
-            
-            if st.button("Guardar Regla", type="primary"):
-                cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
-                if cont: 
-                    guardar_configuracion(palabras, cont)
-                    
-                    # Limpieza manual del estado de los inputs
-                    st.session_state["input_palabra"] = ""
-                    st.session_state["input_texto"] = ""
-                    if "input_archivo" in st.session_state:
-                        del st.session_state["input_archivo"]
-                    
-                    st.toast("¡Regla guardada exitosamente!", icon="✅")
-                    st.rerun()
+            # Envolvemos en un formulario con clear_on_submit=True para limpiar de forma nativa y segura
+            with st.form("nueva_regla_form", border=False):
+                palabras = st.text_input("Palabra clave")
+                archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
+                res_texto = st.text_area("Respuesta texto")
+                
+                if st.form_submit_button("Guardar Regla", type="primary"):
+                    cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
+                    if cont: 
+                        guardar_configuracion(palabras, cont)
+                        st.toast("¡Regla guardada exitosamente!", icon="✅")
+                        st.rerun()
         
         st.write("#### 🔑 Reglas del sistema")
         for conf in obtener_configuraciones():
@@ -128,23 +123,19 @@ with col_centro:
     with tab2:
         # --- SECCIÓN 1: REGISTRO DE CUENTAS PAGO MÓVIL ---
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
-            with st.form("nuevo_pago_form", border=False):
+            # Agregamos clear_on_submit=True aquí para solucionar tu error de raíz
+            with st.form("nuevo_pago_form", border=False, clear_on_submit=True):
                 c_ced, c_tel = st.columns(2)
                 with c_ced:
-                    ced = st.text_input("Cédula Receptor", key="input_cedula")
+                    ced = st.text_input("Cédula Receptor")
                 with c_tel:
-                    tel = st.text_input("Teléfono Receptor", key="input_telefono")
+                    tel = st.text_input("Teléfono Receptor")
                 
                 _, c_btn = st.columns([2, 1])
                 with c_btn:
                     if st.form_submit_button("Registrar Pago Móvil", use_container_width=True):
                         if ced and tel:
                             guardar_contacto(ced, tel)
-                            
-                            # Limpieza manual del estado de los inputs
-                            st.session_state["input_cedula"] = ""
-                            st.session_state["input_telefono"] = ""
-                            
                             st.toast("¡Pago Móvil registrado!", icon="✅")
                             st.rerun()
                         else:
