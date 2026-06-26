@@ -17,13 +17,22 @@ if not st.session_state["logueado"]:
         st.markdown("<br><br>", unsafe_allow_html=True)
         with st.container(border=True):
             st.title("🔐 Iniciar Sesión")
-            user, pwd = st.text_input("Usuario"), st.text_input("Contraseña", type="password")
-            if st.button("Entrar", use_container_width=True, type="primary"):
-                valido, msg = verificar_login(user, pwd)
-                if valido: 
-                    st.session_state["logueado"] = True
-                    st.rerun()
-                else: st.error(msg)
+            
+            # Envolvemos el login en un st.form para habilitar el inicio con la tecla Enter
+            with st.form("login_form", border=False):
+                user = st.text_input("Usuario")
+                pwd = st.text_input("Contraseña", type="password")
+                
+                # El botón debe ser obligatoriamente un st.form_submit_button
+                entrar = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+                
+                if entrar:
+                    valido, msg = verificar_login(user, pwd)
+                    if valido: 
+                        st.session_state["logueado"] = True
+                        st.rerun()
+                    else: 
+                        st.error(msg)
     st.stop()
 
 # --- DIÁLOGOS GLOBALES DE EDICIÓN ---
