@@ -90,6 +90,21 @@ def abrir_editor_pago(cuenta):
         except Exception as e:
             st.error(f"Error al actualizar: {e}")
 
+def obtener_metricas_del_dia():
+    """
+    Devuelve datos simulados (Mock) para evitar errores 
+    mientras se crea la tabla en la base de datos.
+    """
+    try:
+        # Una vez que crees la tabla en Supabase, cambiaremos esto por la consulta real
+        return {
+            "monto": "Bs. 3,320.00",  # Dato simulado
+            "procesados": "5",        # Dato simulado
+            "alertas": "0"            # Dato simulado
+        }
+    except Exception as e:
+        return {"monto": "Bs. 0.00", "procesados": "0", "alertas": "0"}
+
 
 # --- ESTRUCTURA DE PANTALLA CENTRADA Y COMPACTA ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
