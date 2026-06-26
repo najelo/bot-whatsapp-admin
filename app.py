@@ -97,79 +97,96 @@ with col_centro:
     tab1, tab2 = st.tabs(["⚙️ Reglas del Bot", "💳 Gestión de Pagos"])
 
     # --- TAB 1: REGLAS ---
-    with tab1:
-        with st.expander("➕ Nueva Regla"):
-            palabras = st.text_input("Palabra clave")
-            archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
-            res_texto = st.text_area("Respuesta texto")
-            if st.button("Guardar Regla", type="primary"):
-                cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
-                if cont: guardar_configuracion(palabras, cont); st.rerun()
+   with tab1:
+    with st.expander("➕ Nueva Regla"):
+        # Asignamos 'key' para poder controlar y limpiar su contenido desde el código
+        palabras = st.text_input("Palabra clave", key="input_palabra")
+        archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"], key="input_archivo")
+        res_texto = st.text_area("Respuesta texto", key="input_texto")
         
-        st.write("#### 🔑 Reglas del sistema")
-        for conf in obtener_configuraciones():
-            with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
-                c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                if c2.button("✏️ Editar", key=f"edit_{conf['id']}", use_container_width=True): 
-                    abrir_editor(conf)
+        if st.button("Guardar Regla", type="primary"):
+            cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
+            if cont: 
+                guardar_configuracion(palabras, cont)
+                
+                # 🧼 LIMPIAMOS los campos en el session_state antes de recargar
+                st.session_state["input_palabra"] = ""
+                st.session_state["input_texto"] = ""
+                # Nota: Para el st.file_uploader, cambiar la clave o resetear el estado limpia el archivo
+                if "input_archivo" in st.session_state:
+                    del st.session_state["input_archivo"]
+                
+                st.toast("¡Regla guardada exitosamente!", icon="✅")
+                st.rerun()
+    
+    st.write("#### 🔑 Reglas del sistema")
+    for conf in obtener_configuraciones():
+        with st.container(border=True):
+            c1, c2 = st.columns([5, 1])
+            c1.write(f"🔑 **{conf.get('palabra_clave')}**")
+            if c2.button("✏️ Editar", key=f"edit_{conf['id']}", use_container_width=True): 
+                abrir_editor(conf)
 
-    # --- TAB 2: PAGOS ---
-    with tab2:
-        # --- SECCIÓN 1: REGISTRO DE CUENTAS PAGO MÓVIL ---
-        with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
-            # Hacemos el formulario interno aún más compacto usando columnas
-            with st.form("nuevo_pago_form", border=False):
-                c_ced, c_tel = st.columns(2)
-                with c_ced:
-                    ced = st.text_input("Cédula Receptor")
-                with c_tel:
-                    tel = st.text_input("Teléfono Receptor")
-                
-                _, c_btn = st.columns([2, 1])
-                with c_btn:
-                    if st.form_submit_button("Registrar Pago Móvil", use_container_width=True):
-                        if ced and tel:
-                            guardar_contacto(ced, tel)
-                            st.rerun()
-                        else:
-                            st.warning("Por favor, rellena ambos campos.") 
-
-        # --- SECCIÓN 2: LISTADO DE CUENTAS REGISTRADAS ---
-        st.write("#### 📋 Cuentas Registradas (Pago Móvil)")
-        for c in obtener_configuracion_pagos():
-            with st.container(border=True):
-                # Layout en una sola línea compacta para la info y estado
-                inf1, inf2 = st.columns([3, 1])
-                inf1.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
-                with inf2:
-                    if c.get('activo'): 
-                        st.markdown("<span style='color:#2ec4b6; font-weight:bold;'>● Activo</span>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<span style='color:#e71d36; font-weight:bold;'>● Inactivo</span>", unsafe_allow_html=True)
-                
-                # Fila de acciones compactas abajo
-                col_act, col_edit, col_del = st.columns([2, 1, 1])
-                with col_act:
-                    if not c.get('activo'):
-                        if st.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True): 
-                            activar_contacto(c['id'])
-                            st.rerun()
-                    else:
-                        st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, use_container_width=True)
-                
-                with col_edit:
-                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True):
-                        abrir_editor_pago(c)
+# --- TAB 2: PAGOS ---
+with tab2:
+    # --- SECCIÓN 1: REGISTRO DE CUENTAS PAGO MÓVIL ---
+    with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
+        with st.form("nuevo_pago_form", border=False):
+            c_ced, c_tel = st.columns(2)
+            with c_ced:
+                # Asignamos 'key' también dentro del formulario
+                ced = st.text_input("Cédula Receptor", key="input_cedula")
+            with c_tel:
+                tel = st.text_input("Teléfono Receptor", key="input_telefono")
+            
+            _, c_btn = st.columns([2, 1])
+            with c_btn:
+                if st.form_submit_button("Registrar Pago Móvil", use_container_width=True):
+                    if ced and tel:
+                        guardar_contacto(ced, tel)
                         
-                with col_del:
-                    if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", use_container_width=True, type="secondary"):
-                        try:
-                            supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
-                            st.toast("Cuenta eliminada", icon="🗑️")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"No se pudo eliminar: {e}")
+                        # 🧼 LIMPIAMOS los campos de pago en el session_state antes de recargar
+                        st.session_state["input_cedula"] = ""
+                        st.session_state["input_telefono"] = ""
+                        
+                        st.toast("¡Pago Móvil registrado!", icon="✅")
+                        st.rerun()
+                    else:
+                        st.warning("Por favor, rellena ambos campos.") 
+
+    # --- SECCIÓN 2: LISTADO DE CUENTAS REGISTRADAS ---
+    st.write("#### 📋 Cuentas Registradas (Pago Móvil)")
+    for c in obtener_configuracion_pagos():
+        with st.container(border=True):
+            inf1, inf2 = st.columns([3, 1])
+            inf1.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
+            with inf2:
+                if c.get('activo'): 
+                    st.markdown("<span style='color:#2ec4b6; font-weight:bold;'>● Activo</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<span style='color:#e71d36; font-weight:bold;'>● Inactivo</span>", unsafe_allow_html=True)
+            
+            col_act, col_edit, col_del = st.columns([2, 1, 1])
+            with col_act:
+                if not c.get('activo'):
+                    if st.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True): 
+                        activar_contacto(c['id'])
+                        st.rerun()
+                else:
+                    st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, use_container_width=True)
+            
+            with col_edit:
+                if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True):
+                    abrir_editor_pago(c)
+                    
+            with col_del:
+                if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", use_container_width=True, type="secondary"):
+                    try:
+                        supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
+                        st.toast("Cuenta eliminada", icon="🗑️")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"No se pudo eliminar: {e}")
 
         # --- SECCIÓN 3: CONFIGURACIÓN DE MONTOS DINÁMICOS POR EMOJI ---
         st.write("---")
