@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, time as datetime_time, timedelta
+import io
 
 # Importaciones locales personalizadas
 from auth_utils import verificar_login, get_supabase
@@ -218,13 +219,13 @@ with col_centro:
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # 1. Ajuste matemático de zona horaria (Restar 4 horas para convertir UTC a Hora de Venezuela)
+            # 1. Ajuste matemático de zona horaria (UTC a hora de Venezuela VET)
             df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
 
-            # 2. Establecer por defecto el día más reciente con registros para evitar que se vea vacío al abrir
+            # 2. Establecer por defecto el día más reciente con registros
             fecha_defecto = df["created_at"].dt.date.max() if not df.empty else datetime.now().date()
 
-            # Filtros interactivos de usuario
+            # Filtros interactivos
             col_f1, col_f2, col_f3 = st.columns(3)
             with col_f1: 
                 f_inicio = st.date_input("Desde", fecha_defecto, key="log_f_ini")
@@ -233,7 +234,6 @@ with col_centro:
             with col_f3: 
                 f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
-            # Filtrar por el rango de fechas seleccionado
             ini_dt = datetime.combine(f_inicio, datetime_time.min)
             fn_dt = datetime.combine(f_fin, datetime_time.max)
             df_filtrado = df[(df["created_at"] >= ini_dt) & (df["created_at"] <= fn_dt)]
@@ -241,29 +241,22 @@ with col_centro:
             if f_estado != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["estado"].astype(str).str.strip().str.lower() == f_estado.lower()]
 
-            # --- CORRECCIÓN DEL GRÁFICO POR HORA ---
+            # Gráfico de Tendencia por Hora
             st.markdown("#### 📊 Tendencia de Pagos por Hora (Rango Filtrado)")
             df_aprobados = df_filtrado[df_filtrado["estado"].astype(str).str.strip().str.lower().isin(["approved", "aprobado"])].copy()
             
             if not df_aprobados.empty:
-                # Forzar la extracción limpia del entero de la hora (0 - 23)
                 df_aprobados["Hora"] = df_aprobados["created_at"].dt.hour
-                
-                # Agrupar estrictamente por el número de hora numérica
                 grafico_data = df_aprobados.groupby("Hora")["monto"].sum().reset_index()
-                
-                # Asegurar las 24 columnas del día en el eje X para que no se agrupen en un solo bloque estirado
                 todas_las_horas = pd.DataFrame({"Hora": range(24)})
                 grafico_completo = pd.merge(todas_las_horas, grafico_data, on="Hora", how="left").fillna(0)
-                
-                # Renderizar gráfico de barras limpio
                 st.bar_chart(data=grafico_completo, x="Hora", y="monto", color="#25D366")
             else:
                 st.caption("No hay suficientes transacciones aprobadas en este rango específico para generar barras.")
 
-          st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
 
-            # --- BOTONES DE DESCARGA (PDF y EXCEL) ---
+            # --- BOTONES DE DESCARGA PARALELOS ---
             col_down1, col_down2 = st.columns(2)
             
             with col_down1:
@@ -278,8 +271,6 @@ with col_centro:
                 )
             
             with col_down2:
-                # Generar el Excel en memoria usando BytesIO con los datos ya filtrados
-                import io
                 buffer_excel = io.BytesIO()
                 with pd.ExcelWriter(buffer_excel, engine='openpyxl') as writer:
                     df_filtrado.to_excel(writer, index=False, sheet_name='Historial')
