@@ -11,8 +11,5 @@ def obtener_metricas_del_dia():
     """
     try:
         supabase = get_supabase()
-        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-        
-        # Consultamos los registros que fueron creados hoy
-        # (Ajusta "historial_pagos" si tu tabla tiene otro nombre)
-        query = supabase.table("historial_pagos").select("*").gte("created_at", f"{fecha_hoy
+       fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+query = supabase.table("historial_pagos").select("*").gte("created_at", f"{fecha_hoy}T00:00:00").execute()
