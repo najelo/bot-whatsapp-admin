@@ -73,11 +73,23 @@ with col_centro:
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Logs"])
 
     with tab1:
+        st.subheader("⚙️ Reglas del Bot")
+        with st.expander("➕ Agregar Nueva Regla"):
+            with st.form("nueva_regla", clear_on_submit=True):
+                palabra = st.text_input("Palabra clave")
+                archivo = st.file_uploader("Archivo de respuesta")
+                texto = st.text_area("O respuesta en texto")
+                if st.form_submit_button("Guardar Regla"):
+                    # Tu lógica de guardado
+                    st.rerun()
+        
         for conf in obtener_configuraciones():
             with st.container(border=True):
                 c1, c2 = st.columns([5, 1])
                 c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                if c2.button("✏️ Editar", key=f"e{conf['id']}"): abrir_editor(conf)
+                if c2.button("✏️ Editar", key=f"e{conf['id']}"): 
+                    # Aquí va tu @st.dialog de edición
+                    pass
 
     with tab2:
         with st.expander("➕ Registrar Nuevo Receptor"):
