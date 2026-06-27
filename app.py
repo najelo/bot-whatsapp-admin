@@ -84,6 +84,11 @@ def abrir_editor_pago(cuenta):
             st.rerun()
         except Exception as e: 
             st.error(f"Error al actualizar: {e}")
+            df_visual = df_filtrado.copy()
+if not df_visual.empty:
+    # ESTO ES LO QUE CORRIGE LA VISUALIZACIÓN
+    df_visual["created_at"] = df_visual["created_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    st.dataframe(df_visual, ...)
 
 
 # --- ESTRUCTURA PRINCIPAL DE LA PANTALLA ---
