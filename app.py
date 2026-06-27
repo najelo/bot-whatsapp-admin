@@ -84,15 +84,8 @@ with col_centro:
                 c1, c2 = st.columns([5, 1])
                 c1.write(f"🔑 **{conf.get('palabra_clave')}**")
                 if c2.button("✏️ Editar", key=f"e{conf['id']}"): abrir_editor(conf)
-
-    with tab2:
-        for c in obtener_configuracion_pagos():
-            with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
-                c1.write(f"💳 {c.get('cedula_esperada')} | {c.get('telefono_esperado')}")
-                if c2.button("✏️ Editar", key=f"p{c['id']}"): abrir_editor_pago(c)
-
-    with st.expander("➕ Registrar Nuevo Receptor"):
+with tab2:
+        with st.expander("➕ Registrar Nuevo Receptor"):
             with st.form("nuevo_pago_form", border=False, clear_on_submit=True):
                 c_ced, c_tel = st.columns(2)
                 ced = c_ced.text_input("Cédula Receptor")
@@ -102,7 +95,8 @@ with col_centro:
                         guardar_contacto(ced, tel)
                         st.toast("¡Registrado!", icon="✅")
                         st.rerun()
-                    else: st.warning("Rellena todos los campos")
+                    else: 
+                        st.warning("Rellena todos los campos")
 
         st.write("#### 📋 Cuentas Registradas")
         for c in obtener_configuracion_pagos():
@@ -110,14 +104,11 @@ with col_centro:
                 col1, col2 = st.columns([3, 1])
                 col1.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
                 
-                # Indicador de estado
                 estado = "🟢 Activo" if c.get('activo') else "🔴 Inactivo"
                 col2.markdown(f"**{estado}**")
                 
-                # Botones de acción
                 c_act, c_edit, c_del = st.columns(3)
                 
-                # Lógica de Activación
                 if not c.get('activo'):
                     if c_act.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True):
                         activar_contacto(c['id'])
@@ -125,7 +116,6 @@ with col_centro:
                 else:
                     c_act.button("✨ Principal", disabled=True, use_container_width=True)
                 
-                # Edición y Eliminación
                 if c_edit.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True):
                     abrir_editor_pago(c)
                 
@@ -133,17 +123,6 @@ with col_centro:
                     supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
                     st.toast("Cuenta eliminada", icon="🗑️")
                     st.rerun()
-
-        # Gestión de Montos por Emoji
-        st.markdown("---")
-        st.subheader("🖼️ Montos de Verificación")
-        with st.form("form_montos_emojis"):
-            c1, c2, c3 = st.columns(3)
-            # Aquí se asume que tus funciones de lectura existen en db_utils o log_utils
-            # Si no, ajusta según tu estructura original
-            if st.form_submit_button("💾 Guardar Montos"):
-                st.success("Montos actualizados")
-                st.rerun()
 
     with tab3:
         lista_logs = obtener_todos_los_logs(supabase)
