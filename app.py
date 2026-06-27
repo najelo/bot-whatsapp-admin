@@ -218,18 +218,18 @@ with col_centro:
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # Ajuste matemático directo (UTC a hora de Venezuela VET UTC-4) sin usar dt.tz_convert
+            # Ajuste matemático directo (UTC a hora de Venezuela VET UTC-4)
             df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
 
-            # Obtener fecha local exacta de Venezuela restando la diferencia al servidor
-            fecha_actual_venezuela = (datetime.utcnow() - timedelta(hours=4)).date()
+            # Para solucionar el desajuste, calculamos la fecha basándonos en los datos procesados reales
+            fecha_defecto = df["created_at"].dt.date.max() if not df.empty else datetime.now().date()
 
             # Filtros interactivos
             col_f1, col_f2, col_f3 = st.columns(3)
             with col_f1: 
-                f_inicio = st.date_input("Desde", fecha_actual_venezuela, key="log_f_ini")
+                f_inicio = st.date_input("Desde", fecha_defecto, key="log_f_ini")
             with col_f2: 
-                f_fin = st.date_input("Hasta", fecha_actual_venezuela, key="log_f_fin")
+                f_fin = st.date_input("Hasta", fecha_defecto, key="log_f_fin")
             with col_f3: 
                 f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
@@ -238,11 +238,12 @@ with col_centro:
             df_filtrado = df[(df["created_at"] >= ini_dt) & (df["created_at"] <= fn_dt)]
 
             if f_estado != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["estado"] == f_estado.lower()]
+                # Limpieza de strings robusta para evitar fallos de mayúsculas/minúsculas o espacios ocultos
+                df_filtrado = df_filtrado[df_filtrado["estado"].astype(str).str.strip().str.lower() == f_estado.lower()]
 
             # Gráfico de Tendencia
             st.markdown("#### 📊 Tendencia de Pagos por Hora (Rango Filtrado)")
-            df_aprobados = df_filtrado[df_filtrado["estado"].str.lower().isin(["approved", "aprobado"])].copy()
+            df_aprobados = df_filtrado[df_filtrado["estado"].astype(str).str.strip().str.lower().isin(["approved", "aprobado"])].copy()
             
             if not df_aprobados.empty:
                 df_aprobados["Hora"] = df_aprobados["created_at"].dt.hour
