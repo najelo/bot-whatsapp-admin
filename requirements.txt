@@ -1,6 +1,5 @@
-python-dotenv
-supabase
-bcrypt
 streamlit
-reportlab
 fastapi
+uvicorn
+pandas
+supabase
