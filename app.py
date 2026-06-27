@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import datetime, time as datetime_time, timedelta
 import io
-from datetime import datetime, timedelta
 
 # Importaciones locales
 from auth_utils import verificar_login, get_supabase
@@ -14,49 +14,110 @@ from pdf_utils import exportar_logs_a_pdf
 st.set_page_config(page_title="Admin Bot", layout="wide")
 supabase = get_supabase()
 
-# --- DIÁLOGOS DE EDICIÓN (Deben ir fuera del bloque principal) ---
-@st.dialog("Editar Regla", width="large")
+# --- DIÁLOGOS DE EDICIÓN ---
+@st.dialog("Editar Regla de Bot", width="large")
 def abrir_editor(conf):
-    st.write(f"Editando: {conf.get('palabra_clave')}")
-    # ... (Aquí iría tu lógica de edición original)
-    if st.button("💾 Guardar"): st.rerun()
+    resp_data = conf.get('respuestas') or {}
+    contenido_actual = resp_data.get('contenido', '')
+    st.markdown(f"### ✏️ Editando: `{conf.get('palabra_clave')}`")
+    nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
+    col_select, col_upload = st.columns(2)
+    with col_select:
+        archivos = listar_archivos_storage()
+        seleccion = st.selectbox("Cambiar por:", ["-- Mantener actual --"] + archivos)
+    with col_upload:
+        nuevo_archivo = st.file_uploader("Subir archivo NUEVO", type=["pdf", "png", "jpg", "mp3", "mp4"])
+    if st.button("💾 Guardar Cambios"):
+        final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else (supabase.storage.from_("recetarios-helado").get_public_url(seleccion) if seleccion != "-- Mantener actual --" else contenido_actual)
+        supabase.table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
+        supabase.table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
+        st.rerun()
 
 @st.dialog("Editar Cuenta", width="medium")
 def abrir_editor_pago(cuenta):
-    st.write(f"Editando Receptor: {cuenta.get('id')}")
-    # ... (Aquí iría tu lógica de edición de pagos)
-    if st.button("💾 Guardar Cambios"): st.rerun()
+    nueva_cedula = st.text_input("Nueva Cédula", value=cuenta.get('cedula_esperada', ''))
+    nuevo_telefono = st.text_input("Nuevo Teléfono", value=cuenta.get('telefono_esperado', ''))
+    if st.button("💾 Guardar"):
+        supabase.table("configuracion_pago").update({"cedula_esperada": nueva_cedula, "telefono_esperado": nuevo_telefono}).eq("id", cuenta['id']).execute()
+        st.rerun()
 
 # --- LOGIN ---
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
 if not st.session_state["logueado"]:
-    # ... (Tu lógica de login)
+    _, col_login, _ = st.columns([1, 1.2, 1])
+    with col_login:
+        with st.container(border=True):
+            st.title("🔐 Iniciar Sesión")
+            with st.form("login_form"):
+                user = st.text_input("Usuario")
+                pwd = st.text_input("Contraseña", type="password")
+                if st.form_submit_button("Entrar", type="primary"):
+                    valido, msg = verificar_login(user, pwd)
+                    if valido: st.session_state["logueado"] = True; st.rerun()
+                    else: st.error(msg)
     st.stop()
 
 # --- ESTRUCTURA PRINCIPAL ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
 with col_centro:
-    # (Cabecera, métricas y tabs...)
+    h1, h2 = st.columns([4, 1])
+    h1.title("🤖 Panel de Control")
+    if h2.button("Cerrar sesión"): st.session_state.update(logueado=False); st.rerun()
+
+    metricas = obtener_metricas_del_dia(supabase)
+    with st.container(border=True):
+        m1, m2, m3 = st.columns(3)
+        m1.metric("💰 Verificado Hoy", metricas["monto"])
+        m2.metric("🖼️ Capturas Leídas", metricas["procesados"])
+        m3.metric("🚨 Alertas", metricas["alertas"])
+
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Logs"])
 
     with tab1:
-        # Formulario de nueva regla...
-        # ...
+        with st.expander("➕ Nueva Regla"):
+            with st.form("nueva_regla_form"):
+                palabras = st.text_input("Palabra clave")
+                archivo = st.file_uploader("Archivo", type=["pdf", "png", "jpg", "mp3", "mp4"])
+                res_texto = st.text_area("Texto")
+                if st.form_submit_button("Guardar"):
+                    cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
+                    guardar_configuracion(palabras, cont); st.rerun()
         for conf in obtener_configuraciones():
             with st.container(border=True):
                 c1, c2 = st.columns([5, 1])
-                c1.write(f"🔑 {conf.get('palabra_clave')}")
-                if c2.button("✏️ Editar", key=f"edit_{conf['id']}"): 
-                    abrir_editor(conf)
+                c1.write(f"🔑 **{conf.get('palabra_clave')}**")
+                if c2.button("✏️", key=f"e{conf['id']}"): abrir_editor(conf)
 
     with tab2:
-        # Formulario de nuevo pago...
-        # ...
+        with st.expander("➕ Nuevo Receptor"):
+            with st.form("nuevo_pago_form"):
+                ced, tel = st.columns(2)
+                c, t = ced.text_input("Cédula"), tel.text_input("Teléfono")
+                if st.form_submit_button("Guardar"): guardar_contacto(c, t); st.rerun()
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
-                # ...
-                if st.button("✏️ Editar", key=f"edit_pago_{c['id']}"): 
-                    abrir_editor_pago(c)
+                c1, c2 = st.columns([5, 1])
+                c1.write(f"💳 {c.get('cedula_esperada')} | {c.get('telefono_esperado')}")
+                if c2.button("✏️", key=f"p{c['id']}"): abrir_editor_pago(c)
 
     with tab3:
-        # (Tu lógica de logs, búsqueda, gráfico y descargas)
+        st.subheader("📋 Historial")
+        busqueda = st.text_input("🔍 Buscar por teléfono")
+        lista_logs = obtener_todos_los_logs(supabase)
+        if lista_logs:
+            df = pd.DataFrame(lista_logs)
+            if busqueda: df = df[df["phone"].astype(str).str.contains(busqueda, na=False)]
+            
+            # Gráfico de Salud
+            conteo = df['estado'].value_counts()
+            fig = px.pie(values=conteo.values, names=conteo.index, color_discrete_map={'aprobado': '#2ec4b6', 'alerta': '#ff9f1c'})
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.dataframe(df, use_container_width=True)
+            
+            # Descarga
+            c1, c2 = st.columns(2)
+            c1.download_button("📥 Descargar PDF", exportar_logs_a_pdf(lista_logs), "logs.pdf")
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer) as writer: df.to_excel(writer, index=False)
+            c2.download_button("📊 Descargar Excel", buffer.getvalue(), "logs.xlsx")
