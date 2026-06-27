@@ -261,16 +261,37 @@ with col_centro:
             else:
                 st.caption("No hay suficientes transacciones aprobadas en este rango específico para generar barras.")
 
-            st.markdown("<br>", unsafe_allow_html=True)
+          st.markdown("<br>", unsafe_allow_html=True)
 
-            pdf_data = exportar_logs_a_pdf(lista_logs)
-            st.download_button(
-                label="📥 Descargar Historial Completo en PDF",
-                data=pdf_data,
-                file_name=f"reporte_logs_{datetime.now().strftime('%Y%m%d')}.pdf",
-                mime="application/pdf",
-                type="primary"
-            )
+            # --- BOTONES DE DESCARGA (PDF y EXCEL) ---
+            col_down1, col_down2 = st.columns(2)
+            
+            with col_down1:
+                pdf_data = exportar_logs_a_pdf(lista_logs)
+                st.download_button(
+                    label="📥 Descargar Todo en PDF",
+                    data=pdf_data,
+                    file_name=f"reporte_logs_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                    type="secondary",
+                    use_container_width=True
+                )
+            
+            with col_down2:
+                # Generar el Excel en memoria usando BytesIO con los datos ya filtrados
+                import io
+                buffer_excel = io.BytesIO()
+                with pd.ExcelWriter(buffer_excel, engine='openpyxl') as writer:
+                    df_filtrado.to_excel(writer, index=False, sheet_name='Historial')
+                
+                st.download_button(
+                    label="📊 Descargar Filtro en Excel",
+                    data=buffer_excel.getvalue(),
+                    file_name=f"historial_filtrado_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True
+                )
             
             st.markdown("<br>", unsafe_allow_html=True)
             
