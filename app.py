@@ -216,7 +216,8 @@ with col_centro:
                     st.rerun()
         except Exception as e: 
             st.error(f"Error al conectar con la configuración de emojis: {e}")
-     with tab3:
+            
+ with tab3:
         st.subheader("📋 Historial de Transacciones")
         lista_logs = obtener_todos_los_logs(supabase)
         
