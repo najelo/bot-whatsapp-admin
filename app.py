@@ -218,13 +218,13 @@ with col_centro:
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # Ajuste matemático directo (UTC a hora de Venezuela VET UTC-4)
+            # 1. Ajuste matemático de zona horaria (Restar 4 horas para convertir UTC a Hora de Venezuela)
             df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
 
-            # Para solucionar el desajuste, calculamos la fecha basándonos en los datos procesados reales
+            # 2. Establecer por defecto el día más reciente con registros para evitar que se vea vacío al abrir
             fecha_defecto = df["created_at"].dt.date.max() if not df.empty else datetime.now().date()
 
-            # Filtros interactivos
+            # Filtros interactivos de usuario
             col_f1, col_f2, col_f3 = st.columns(3)
             with col_f1: 
                 f_inicio = st.date_input("Desde", fecha_defecto, key="log_f_ini")
@@ -233,23 +233,30 @@ with col_centro:
             with col_f3: 
                 f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
+            # Filtrar por el rango de fechas seleccionado
             ini_dt = datetime.combine(f_inicio, datetime_time.min)
             fn_dt = datetime.combine(f_fin, datetime_time.max)
             df_filtrado = df[(df["created_at"] >= ini_dt) & (df["created_at"] <= fn_dt)]
 
             if f_estado != "Todos":
-                # Limpieza de strings robusta para evitar fallos de mayúsculas/minúsculas o espacios ocultos
                 df_filtrado = df_filtrado[df_filtrado["estado"].astype(str).str.strip().str.lower() == f_estado.lower()]
 
-            # Gráfico de Tendencia
+            # --- CORRECCIÓN DEL GRÁFICO POR HORA ---
             st.markdown("#### 📊 Tendencia de Pagos por Hora (Rango Filtrado)")
             df_aprobados = df_filtrado[df_filtrado["estado"].astype(str).str.strip().str.lower().isin(["approved", "aprobado"])].copy()
             
             if not df_aprobados.empty:
+                # Forzar la extracción limpia del entero de la hora (0 - 23)
                 df_aprobados["Hora"] = df_aprobados["created_at"].dt.hour
+                
+                # Agrupar estrictamente por el número de hora numérica
                 grafico_data = df_aprobados.groupby("Hora")["monto"].sum().reset_index()
+                
+                # Asegurar las 24 columnas del día en el eje X para que no se agrupen en un solo bloque estirado
                 todas_las_horas = pd.DataFrame({"Hora": range(24)})
                 grafico_completo = pd.merge(todas_las_horas, grafico_data, on="Hora", how="left").fillna(0)
+                
+                # Renderizar gráfico de barras limpio
                 st.bar_chart(data=grafico_completo, x="Hora", y="monto", color="#25D366")
             else:
                 st.caption("No hay suficientes transacciones aprobadas en este rango específico para generar barras.")
