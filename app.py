@@ -70,15 +70,18 @@ with col_centro:
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
 
     # 2. Bloque Tab 1
-    with tab1:
-        st.subheader("⚙️ Reglas del Bot")
-        with st.expander("➕ Crear Nueva Regla"):
-            with st.form("form_regla", clear_on_submit=True):
-                palabra = st.text_input("Palabra clave")
-                archivo = st.file_uploader("Archivo")
-                if st.form_submit_button("Crear Regla"):
-                    guardar_configuracion(palabra, archivo)
-                    st.rerun()
+        with tab1:
+        with st.expander("➕ Nueva Regla"):
+            with st.form("nueva_regla_form", border=False):
+                palabras = st.text_input("Palabra clave")
+                archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
+                res_texto = st.text_area("Respuesta texto")
+                if st.form_submit_button("Guardar Regla", type="primary"):
+                    cont = subir_archivo_al_storage(archivo.getvalue(), file_name=archivo.name) if archivo else res_texto
+                    if cont: 
+                        guardar_configuracion(palabras, cont)
+                        st.toast("¡Regla guardada exitosamente!", icon="✅")
+                        st.rerun()
         
         for conf in obtener_configuraciones():
             with st.container(border=True):
