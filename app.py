@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, time as datetime_time
 
-# Importaciones locales personalizadas (¡Absolutamente respetadas!)
+# Importaciones locales personalizadas
 from auth_utils import verificar_login, get_supabase
 from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
@@ -15,7 +15,9 @@ st.set_page_config(page_title="Admin Bot", layout="wide")
 supabase = get_supabase()
 
 # --- LOGIN ---
-if "logueado" not in st.session_state: st.session_state["logueado"] = False
+if "logueado" not in st.session_state: 
+    st.session_state["logueado"] = False
+
 if not st.session_state["logueado"]:
     _, col_login, _ = st.columns([1, 1.2, 1])
     with col_login:
@@ -30,7 +32,8 @@ if not st.session_state["logueado"]:
                     if valido: 
                         st.session_state["logueado"] = True
                         st.rerun()
-                    else: st.error(msg)
+                    else: 
+                        st.error(msg)
     st.stop()
 
 # --- DIÁLOGOS GLOBALES DE EDICIÓN ---
@@ -58,11 +61,14 @@ def abrir_editor(conf):
                 final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else (supabase.storage.from_("recetarios-helado").get_public_url(seleccion) if seleccion != "-- Mantener actual --" else contenido_actual)
                 supabase.table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
                 supabase.table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
-                st.toast("Guardado", icon="✅"); st.rerun()
-            except Exception as e: st.error(f"Error: {e}")
+                st.toast("Guardado", icon="✅")
+                st.rerun()
+            except Exception as e: 
+                st.error(f"Error: {e}")
     with col_del:
         if st.button("🗑️ Borrar", use_container_width=True):
-            if eliminar_regla(conf['id'], resp_data['id']): st.rerun()
+            if eliminar_regla(conf['id'], resp_data['id']): 
+                st.rerun()
 
 @st.dialog("Editar Cuenta de Pago", width="medium")
 def abrir_editor_pago(cuenta):
@@ -73,8 +79,10 @@ def abrir_editor_pago(cuenta):
     if st.button("💾 Guardar Cambios Cuenta", use_container_width=True, type="primary"):
         try:
             supabase.table("configuracion_pago").update({"cedula_esperada": nueva_cedula, "telefono_esperado": nuevo_telefono}).eq("id", cuenta['id']).execute()
-            st.toast("Cuenta actualizada con éxito", icon="✅"); st.rerun()
-        except Exception as e: st.error(f"Error al actualizar: {e}")
+            st.toast("Cuenta actualizada con éxito", icon="✅")
+            st.rerun()
+        except Exception as e: 
+            st.error(f"Error al actualizar: {e}")
 
 
 # --- ESTRUCTURA PRINCIPAL DE LA PANTALLA ---
@@ -82,19 +90,22 @@ col_izq, col_centro, col_der = st.columns([1, 4, 1])
 
 with col_centro:
     head1, head2 = st.columns([4, 1])
-    with head1: st.title("🤖 Panel de Control")
+    with head1: 
+        st.title("🤖 Panel de Control")
     with head2:
         st.markdown("<br>", unsafe_allow_html=True)
         st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
     
-    # 📊 DASHBOARD DE MÉTRICAS (Datos agregados rápidos del día)
+    # 📊 DASHBOARD DE MÉTRICAS
     st.write("#### 📊 Actividad de Hoy")
     metricas = obtener_metricas_del_dia(supabase)
     
     with st.container(border=True):
         m1, m2, m3 = st.columns(3)
-        with m1: st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
-        with m2: st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
+        with m1: 
+            st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
+        with m2: 
+            st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
         with m3:
             color_alerta = "inverse" if int(metricas["alertas"]) > 0 else "normal"
             st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"], delta=f"{metricas['alertas']} pendientes" if int(metricas["alertas"]) > 0 else None, delta_color=color_alerta)
@@ -113,29 +124,35 @@ with col_centro:
                     cont = subir_archivo_al_storage(archivo.getvalue(), file_name=archivo.name) if archivo else res_texto
                     if cont: 
                         guardar_configuracion(palabras, cont)
-                        st.toast("¡Regla guardada exitosamente!", icon="✅"); st.rerun()
+                        st.toast("¡Regla guardada exitosamente!", icon="✅")
+                        st.rerun()
         
         st.write("#### 🔑 Reglas del sistema")
         for conf in obtener_configuraciones():
             with st.container(border=True):
                 c1, c2 = st.columns([5, 1])
                 c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                if c2.button("✏️ Editar", key=f"edit_{conf['id']}", use_container_width=True): abrir_editor(conf)
+                if c2.button("✏️ Editar", key=f"edit_{conf['id']}", use_container_width=True): 
+                    abrir_editor(conf)
 
     # --- TAB 2: PAGOS ---
     with tab2:
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
             with st.form("nuevo_pago_form", border=False, clear_on_submit=True):
                 c_ced, c_tel = st.columns(2)
-                with c_ced: ced = st.text_input("Cédula Receptor")
-                with c_tel: tel = st.text_input("Teléfono Receptor")
+                with c_ced: 
+                    ced = st.text_input("Cédula Receptor")
+                with c_tel: 
+                    tel = st.text_input("Teléfono Receptor")
                 _, c_btn = st.columns([2, 1])
                 with c_btn:
                     if st.form_submit_button("Registrar Pago Móvil", use_container_width=True):
                         if ced and tel:
                             guardar_contacto(ced, tel)
-                            st.toast("¡Pago Móvil registrado!", icon="✅"); st.rerun()
-                        else: st.warning("Por favor, rellena ambos campos.") 
+                            st.toast("¡Pago Móvil registrado!", icon="✅")
+                            st.rerun()
+                        else: 
+                            st.warning("Por favor, rellena ambos campos.") 
 
         st.write("#### 📋 Cuentas Registradas (Pago Móvil)")
         for c in obtener_configuracion_pagos():
@@ -143,21 +160,29 @@ with col_centro:
                 inf1, inf2 = st.columns([3, 1])
                 inf1.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
                 with inf2:
-                    if c.get('activo'): st.markdown("<span style='color:#2ec4b6; font-weight:bold;'>● Activo</span>", unsafe_allow_html=True)
-                    else: st.markdown("<span style='color:#e71d36; font-weight:bold;'>● Inactivo</span>", unsafe_allow_html=True)
+                    if c.get('activo'): 
+                        st.markdown("<span style='color:#2ec4b6; font-weight:bold;'>● Activo</span>", unsafe_allow_html=True)
+                    else: 
+                        st.markdown("<span style='color:#e71d36; font-weight:bold;'>● Inactivo</span>", unsafe_allow_html=True)
                 col_act, col_edit, col_del = st.columns([2, 1, 1])
                 with col_act:
                     if not c.get('activo'):
-                        if st.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True): activar_contacto(c['id']); st.rerun()
-                    else: st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, use_container_width=True)
+                        if st.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True): 
+                            activar_contacto(c['id'])
+                            st.rerun()
+                    else: 
+                        st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, use_container_width=True)
                 with col_edit:
-                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True): abrir_editor_pago(c)
+                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True): 
+                        abrir_editor_pago(c)
                 with col_del:
                     if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", use_container_width=True, type="secondary"):
                         try:
                             supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
-                            st.toast("Cuenta eliminada", icon="🗑️"); st.rerun()
-                        except Exception as e: st.error(f"No se pudo eliminar: {e}")
+                            st.toast("Cuenta eliminada", icon="🗑️")
+                            st.rerun()
+                        except Exception as e: 
+                            st.error(f"No se pudo eliminar: {e}")
 
         st.write("---")
         st.subheader("🖼️ Montos de Verificación por Emoji")
@@ -167,18 +192,25 @@ with col_centro:
             datos_emojis = {item['emoji']: float(item['monto']) for item in query_emojis.data} if query_emojis.data else {}
             with st.form("form_montos_emojis"):
                 col1, col2, col3 = st.columns(3)
-                with col1: nuevos_valores["💖"] = st.number_input("Monto para 💖", min_value=0.0, value=datos_emojis.get("💖", 3300.0), step=1.0)
-                with col2: nuevos_valores["⭐"] = st.number_input("Monto para ⭐", min_value=0.0, value=datos_emojis.get("⭐", 20.0), step=1.0)
-                with col3: nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
+                with col1: 
+                    nuevos_valores["💖"] = st.number_input("Monto para 💖", min_value=0.0, value=datos_emojis.get("💖", 3300.0), step=1.0)
+                with col2: 
+                    nuevos_valores["⭐"] = st.number_input("Monto para ⭐", min_value=0.0, value=datos_emojis.get("⭐", 20.0), step=1.0)
+                with col3: 
+                    nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
                 _, c_btn_em = st.columns([2, 1])
-                with c_btn_em: guardar_montos = st.form_submit_button("💾 Guardar Montos", use_container_width=True)
+                with c_btn_em: 
+                    guardar_montos = st.form_submit_button("💾 Guardar Montos", use_container_width=True)
                 if guardar_montos:
-                    for em, monto_nuevo in nuevos_valores.items(): supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
-                    st.success("✅ ¡Montos actualizados!"); st.rerun()
-        except Exception as e: st.error(f"Error al conectar con la configuración de emojis: {e}")
+                    for em, monto_nuevo in nuevos_valores.items(): 
+                        supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
+                    st.success("✅ ¡Montos actualizados!")
+                    st.rerun()
+        except Exception as e: 
+            st.error(f"Error al conectar con la configuración de emojis: {e}")
 
-    # --- TAB 3: LOGS / HISTORIAL (Ajustado para Zona Horaria de Venezuela UTC-4) ---
-   with tab3:
+    # --- TAB 3: LOGS / HISTORIAL ---
+    with tab3:
         st.subheader("📋 Historial Completo de Verificaciones")
         st.caption("Lecturas de comprobantes procesadas por el bot.")
         
@@ -186,20 +218,22 @@ with col_centro:
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # 🕰️ CORRECCIÓN DE HORA: Convertir UTC a hora local (America/Caracas) y quitar el tag de zona
+            # Convertir UTC a hora local de Venezuela
             df["created_at"] = pd.to_datetime(df["created_at"])
             df["created_at"] = df["created_at"].dt.tz_convert("America/Caracas").dt.tz_localize(None)
 
-            # OBTENER FECHA ACTUAL REAL EN VENEZUELA PARA LOS FILTROS
+            # Obtener fecha local de Venezuela para los selectores
             fecha_actual_venezuela = datetime.now(pd.Timestamp.now(tz="America/Caracas").tz).date()
 
-            # Filtros interactivos dentro del Tab
+            # Filtros interactivos
             col_f1, col_f2, col_f3 = st.columns(3)
-            with col_f1: f_inicio = st.date_input("Desde", fecha_actual_venezuela, key="log_f_ini")
-            with col_f2: f_fin = st.date_input("Hasta", fecha_actual_venezuela, key="log_f_fin")
-            with col_f3: f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
+            with col_f1: 
+                f_inicio = st.date_input("Desde", fecha_actual_venezuela, key="log_f_ini")
+            with col_f2: 
+                f_fin = st.date_input("Hasta", fecha_actual_venezuela, key="log_f_fin")
+            with col_f3: 
+                f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
-            # Aplicar filtros temporales y de estado basándose en la hora corregida
             ini_dt = datetime.combine(f_inicio, datetime_time.min)
             fn_dt = datetime.combine(f_fin, datetime_time.max)
             df_filtrado = df[(df["created_at"] >= ini_dt) & (df["created_at"] <= fn_dt)]
@@ -207,9 +241,10 @@ with col_centro:
             if f_estado != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["estado"] == f_estado.lower()]
 
-            # 📊 GRÁFICO CON HORARIOS REALES DE VENEZUELA
+            # Gráfico de Tendencia
             st.markdown("#### 📊 Tendencia de Pagos por Hora (Rango Filtrado)")
-            df_aprobados = df_filtrado[df_filtrado["estado"] == "aprobado"].copy()
+            df_aprobados = df_filtrado[df_filtrado["estado"] == "approved"].copy() if "approved" in df_filtrado["estado"].values else df_filtrado[df_filtrado["estado"] == "aprobado"].copy()
+            
             if not df_aprobados.empty:
                 df_aprobados["Hora"] = df_aprobados["created_at"].dt.hour
                 grafico_data = df_aprobados.groupby("Hora")["monto"].sum().reset_index()
@@ -232,11 +267,10 @@ with col_centro:
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # Formatear visualmente la tabla interactiva
+            # Renderizar la Tabla Interactiva
             df_visual = df_filtrado.copy()
             if not df_visual.empty:
                 df_visual["created_at"] = df_visual["created_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
-                
                 st.dataframe(
                     df_visual, 
                     column_config={
