@@ -39,7 +39,6 @@ with col_centro:
         st.markdown("<br>", unsafe_allow_html=True)
         st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
 
-    # Métricas
     metricas = obtener_metricas_del_dia(supabase)
     with st.container(border=True):
         m1, m2, m3 = st.columns(3)
@@ -49,7 +48,6 @@ with col_centro:
 
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas del Bot", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-    # TAB 1: REGLAS (Formulario y Lista)
     with tab1:
         with st.expander("➕ Nueva Regla"):
             with st.form("nueva_regla_form", border=False):
@@ -65,7 +63,6 @@ with col_centro:
             with st.container(border=True):
                 st.write(f"🔑 **{conf.get('palabra_clave')}**")
 
-    # TAB 2: PAGOS (Formulario y Lista)
     with tab2:
         with st.expander("➕ Registrar Nuevo Receptor"):
             with st.form("nuevo_pago_form", clear_on_submit=True):
@@ -80,12 +77,18 @@ with col_centro:
             with st.container(border=True):
                 st.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
 
-    # TAB 3: LOGS
     with tab3:
         st.subheader("📋 Historial Completo")
+        busqueda_tel = st.text_input("🔍 Buscar por número de teléfono:", placeholder="Ej: 4121234567")
+        
         lista_logs = obtener_todos_los_logs(supabase)
         if lista_logs:
             df = pd.DataFrame(lista_logs)
+            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
+            
+            # Filtro de búsqueda
+            if busqueda_tel:
+                df = df[df["phone"].astype(str).str.contains(busqueda_tel, na=False)]
             
             # Gráfico Salud
             st.markdown("#### 🥧 Salud de las Transacciones")
@@ -95,10 +98,9 @@ with col_centro:
             fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250)
             st.plotly_chart(fig, use_container_width=True)
             
-            # Tabla
             st.dataframe(df, use_container_width=True)
             
-            # Botones Descarga
+            # Descargas
             col_d1, col_d2 = st.columns(2)
             with col_d1:
                 pdf_data = exportar_logs_a_pdf(lista_logs)
