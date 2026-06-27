@@ -3,3 +3,4 @@ supabase
 bcrypt
 streamlit
 reportlab
+fastapi
