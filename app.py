@@ -215,9 +215,30 @@ with col_centro:
                     st.rerun()
         except Exception as e: 
             st.error(f"Error al conectar con la configuración de emojis: {e}")
-
-    with tab3:
-        st.subheader("📋 Historial")
+with tab3:
+        st.subheader("📋 Historial de Transacciones")
         lista_logs = obtener_todos_los_logs(supabase)
+        
         if lista_logs:
-            st.dataframe(pd.DataFrame(lista_logs))
+            df = pd.DataFrame(lista_logs)
+            # Asegurar formato de fecha
+            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
+            
+            # Filtros de fecha
+            col_f1, col_f2 = st.columns(2)
+            fecha_inicio = col_f1.date_input("Fecha Inicio", value=datetime.now() - timedelta(days=7))
+            fecha_fin = col_f2.date_input("Fecha Fin", value=datetime.now())
+            
+            # Aplicar filtro
+            mask = (df["created_at"].dt.date >= fecha_inicio) & (df["created_at"].dt.date <= fecha_fin)
+            df_filtrado = df.loc[mask]
+            
+            # Mostrar tabla filtrada
+            st.dataframe(
+                df_filtrado, 
+                column_config={"monto": st.column_config.NumberColumn("Monto", format="Bs. %.2f")},
+                use_container_width=True, 
+                hide_index=True
+            )
+        else:
+            st.info("No hay registros en el historial.")
