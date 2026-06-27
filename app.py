@@ -311,3 +311,24 @@ with col_centro:
                 st.info("No hay transacciones registradas para los filtros seleccionados.")
         else:
             st.info("No hay registros en el historial de logs actualmente.")
+# 🥧 GRÁFICO DE SALUD DEL SISTEMA
+    st.markdown("#### 🥧 Salud de las Transacciones")
+    
+    # Preparamos los datos para el gráfico
+    df_grafico = pd.DataFrame(lista_logs)
+    if not df_grafico.empty:
+        # Contamos cuántos hay por estado
+        conteo_estados = df_grafico['estado'].value_counts()
+        
+        # Creamos el gráfico de pastel
+        fig = px.pie(
+            values=conteo_estados.values, 
+            names=conteo_estados.index, 
+            color=conteo_estados.index,
+            color_discrete_map={'aprobado': '#2ec4b6', 'alerta': '#ff9f1c', 'error': '#e71d36'}
+        )
+        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.caption("Aún no hay datos para mostrar el gráfico de salud.")
+
