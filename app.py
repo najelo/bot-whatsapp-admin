@@ -65,28 +65,32 @@ with col_centro:
     if h2.button("Cerrar sesión"): st.session_state.update(logueado=False); st.rerun()
 
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
-
-    with tab1:
-        st.subheader("⚙️ Reglas del Bot")
+with tab1:
+        # FORMULARIO DE CREACIÓN (REGLAS)
+        with st.expander("➕ Crear Nueva Regla"):
+            with st.form("form_regla", clear_on_submit=True):
+                palabra = st.text_input("Palabra clave")
+                archivo = st.file_uploader("Archivo")
+                if st.form_submit_button("Crear Regla"):
+                    guardar_configuracion(palabra, archivo)
+                    st.rerun()
+        # Lista existente
         for conf in obtener_configuraciones():
-            with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
-                c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                if c2.button("✏️ Editar", key=f"e{conf['id']}"): abrir_editor(conf)
+            if st.button(f"✏️ Editar {conf['palabra_clave']}", key=f"e_{conf['id']}"): abrir_editor(conf)
 
     with tab2:
+        # FORMULARIO DE CREACIÓN (PAGOS)
+        with st.expander("➕ Registrar Nuevo Receptor"):
+            with st.form("form_pago", clear_on_submit=True):
+                c, t = st.text_input("Cédula"), st.text_input("Teléfono")
+                if st.form_submit_button("Registrar"):
+                    guardar_contacto(c, t)
+                    st.rerun()
+        # Lista existente
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
-                col1, col2 = st.columns([3, 1])
-                col1.write(f"💳 **{c.get('cedula_esperada')}** | **{c.get('telefono_esperado')}**")
-                col2.markdown(f"**{'🟢 Activo' if c.get('activo') else '🔴 Inactivo'}**")
-                
-                c_act, c_edit, c_del = st.columns(3)
-                if not c.get('activo'):
-                    if c_act.button("🚀 Activar", key=f"act_{c['id']}"): activar_contacto(c['id']); st.rerun()
-                if c_edit.button("✏️ Editar", key=f"edit_{c['id']}"): abrir_editor_pago(c)
-                if c_del.button("🗑️ Eliminar", key=f"del_{c['id']}"): supabase.table("configuracion_pago").delete().eq("id", c['id']).execute(); st.rerun()
-
+                st.write(f"💳 {c['cedula_esperada']}")
+                if st.button(f"✏️ Editar", key=f"p_{c['id']}"): abrir_editor_pago(c)
     with tab3:
         st.subheader("📋 Historial")
         lista_logs = obtener_todos_los_logs(supabase)
