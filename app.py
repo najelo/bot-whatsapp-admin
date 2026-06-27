@@ -98,7 +98,13 @@ with col_centro:
         st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
     
     # 📊 DASHBOARD DE MÉTRICAS
-    st.write("#### 📊 Actividad de Hoy")
+    col_titulo_met, col_btn_refresh = st.columns([3, 1])
+    with col_titulo_met:
+        st.write("#### 📊 Actividad de Hoy")
+    with col_btn_refresh:
+        if st.button("🔄 Actualizar Métricas", use_container_width=True, type="secondary"):
+            st.rerun()
+            
     metricas = obtener_metricas_del_dia(supabase)
     
     with st.container(border=True):
@@ -231,8 +237,7 @@ with col_centro:
                 f_inicio = st.date_input("Desde", fecha_defecto, key="log_f_ini")
             with col_f2: 
                 f_fin = st.date_input("Hasta", fecha_defecto, key="log_f_fin")
-            with col_f3: 
-                f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
+            with col_f3 = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
             ini_dt = datetime.combine(f_inicio, datetime_time.min)
             fn_dt = datetime.combine(f_fin, datetime_time.max)
