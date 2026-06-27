@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, time as datetime_time
+from datetime import datetime, time as datetime_time, timedelta
 
 # Importaciones locales personalizadas
 from auth_utils import verificar_login, get_supabase
@@ -218,12 +218,11 @@ with col_centro:
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # Convertir UTC a hora local de Venezuela
-            df["created_at"] = pd.to_datetime(df["created_at"])
-            df["created_at"] = df["created_at"].dt.tz_convert("America/Caracas").dt.tz_localize(None)
+            # Ajuste matemático directo (UTC a hora de Venezuela VET UTC-4) sin usar dt.tz_convert
+            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
 
-            # Obtener fecha local de Venezuela para los selectores
-            fecha_actual_venezuela = datetime.now(pd.Timestamp.now(tz="America/Caracas").tz).date()
+            # Obtener fecha local exacta de Venezuela restando la diferencia al servidor
+            fecha_actual_venezuela = (datetime.utcnow() - timedelta(hours=4)).date()
 
             # Filtros interactivos
             col_f1, col_f2, col_f3 = st.columns(3)
@@ -243,7 +242,7 @@ with col_centro:
 
             # Gráfico de Tendencia
             st.markdown("#### 📊 Tendencia de Pagos por Hora (Rango Filtrado)")
-            df_aprobados = df_filtrado[df_filtrado["estado"] == "approved"].copy() if "approved" in df_filtrado["estado"].values else df_filtrado[df_filtrado["estado"] == "aprobado"].copy()
+            df_aprobados = df_filtrado[df_filtrado["estado"].str.lower().isin(["approved", "aprobado"])].copy()
             
             if not df_aprobados.empty:
                 df_aprobados["Hora"] = df_aprobados["created_at"].dt.hour
