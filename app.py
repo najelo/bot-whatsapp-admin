@@ -68,7 +68,6 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
 
     with tab1:
         st.subheader("⚙️ Reglas del Bot")
-        # FORMULARIO DE CREACIÓN
         with st.expander("➕ Crear Nueva Regla"):
             with st.form("form_regla", clear_on_submit=True):
                 palabra = st.text_input("Palabra clave")
@@ -78,7 +77,6 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
                     st.toast("Regla creada", icon="✅")
                     st.rerun()
         
-        # LISTA Y EDICIÓN
         for conf in obtener_configuraciones():
             with st.container(border=True):
                 c1, c2 = st.columns([5, 1])
@@ -88,7 +86,6 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
 
     with tab2:
         st.subheader("💳 Gestión de Pagos")
-        # FORMULARIO DE CREACIÓN
         with st.expander("➕ Registrar Nuevo Receptor"):
             with st.form("form_pago", clear_on_submit=True):
                 c = st.text_input("Cédula")
@@ -98,15 +95,12 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
                     st.toast("Receptor registrado", icon="✅")
                     st.rerun()
         
-        # LISTA, ACTIVACIÓN Y EDICIÓN
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
                 col1.write(f"💳 **{c.get('cedula_esperada')}** | **{c.get('telefono_esperado')}**")
                 
-                # Botones de acción
                 c_act, c_edit, c_del = st.columns(3)
-                
                 if not c.get('activo'):
                     if c_act.button("🚀 Activar", key=f"act_{c['id']}"):
                         activar_contacto(c['id'])
