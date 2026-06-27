@@ -216,34 +216,42 @@ with col_centro:
         except Exception as e: 
             st.error(f"Error al conectar con la configuración de emojis: {e}")
 with tab3:
-        st.subheader("📋 Historial de Transacciones")
+        st.subheader("📋 Historial Completo de Verificaciones")
         lista_logs = obtener_todos_los_logs(supabase)
         
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
-            
-            # FILTROS
-            col_f1, col_f2, col_f3 = st.columns([2, 2, 2])
-            fecha_inicio = col_f1.date_input("Fecha Inicio", value=datetime.now() - timedelta(days=7))
-            fecha_fin = col_f2.date_input("Fecha Fin", value=datetime.now())
+
+            # Filtros
+            col_f1, col_f2, col_f3 = st.columns(3)
+            f_inicio = col_f1.date_input("Desde", datetime.now() - timedelta(days=7))
+            f_fin = col_f2.date_input("Hasta", datetime.now())
             busqueda_tel = col_f3.text_input("Buscar por Teléfono")
-            
-            # LÓGICA DE FILTRADO
-            mask = (df["created_at"].dt.date >= fecha_inicio) & (df["created_at"].dt.date <= fecha_fin)
-            
-            # Si el usuario escribe algo en el teléfono, filtramos por eso también
+
+            # Aplicar filtros
+            mask = (df["created_at"].dt.date >= f_inicio) & (df["created_at"].dt.date <= f_fin)
             if busqueda_tel:
                 mask = mask & df['phone'].astype(str).str.contains(busqueda_tel, na=False)
             
             df_filtrado = df.loc[mask]
+
+            # --- BOTÓN DE DESCARGA EXCEL ---
+            buffer_excel = io.BytesIO()
+            with pd.ExcelWriter(buffer_excel, engine='openpyxl') as writer:
+                df_filtrado.to_excel(writer, index=False, sheet_name='Historial')
             
-            # MOSTRAR TABLA
-            st.dataframe(
-                df_filtrado, 
-                column_config={"monto": st.column_config.NumberColumn("Monto", format="Bs. %.2f")},
-                use_container_width=True, 
-                hide_index=True
+            st.download_button(
+                label="📊 Descargar Filtro en Excel",
+                data=buffer_excel.getvalue(),
+                file_name=f"historial_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
             )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Renderizar la Tabla
+            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
         else:
             st.info("No hay registros en el historial.")
