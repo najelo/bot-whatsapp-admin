@@ -57,14 +57,18 @@ if not st.session_state["logueado"]:
                     if verificar_login(user, pwd)[0]: st.session_state["logueado"] = True; st.rerun()
     st.stop()
 
-# --- 3. ESTRUCTURA PRINCIPAL ---
+# --- ESTRUCTURA PRINCIPAL DE LA PANTALLA ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
-with col_centro:
-    h1, h2 = st.columns([4, 1])
-    h1.title("🤖 Panel de Control")
-    if h2.button("Cerrar sesión"): st.session_state.update(logueado=False); st.rerun()
 
-tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
+with col_centro:
+    head1, head2 = st.columns([4, 1])
+    with head1: 
+        st.title("🤖 Panel de Control")
+    with head2:
+        st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
+    
+    # --- AQUI EMPIEZAN LAS TABS ---
+    tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
 
     with tab1:
         st.subheader("⚙️ Reglas del Bot")
@@ -74,7 +78,6 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
                 archivo = st.file_uploader("Archivo")
                 if st.form_submit_button("Crear Regla"):
                     guardar_configuracion(palabra, archivo)
-                    st.toast("Regla creada", icon="✅")
                     st.rerun()
         
         for conf in obtener_configuraciones():
@@ -92,28 +95,14 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
                 t = st.text_input("Teléfono")
                 if st.form_submit_button("Registrar"):
                     guardar_contacto(c, t)
-                    st.toast("Receptor registrado", icon="✅")
                     st.rerun()
         
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
-                col1.write(f"💳 **{c.get('cedula_esperada')}** | **{c.get('telefono_esperado')}**")
-                
-                c_act, c_edit, c_del = st.columns(3)
-                if not c.get('activo'):
-                    if c_act.button("🚀 Activar", key=f"act_{c['id']}"):
-                        activar_contacto(c['id'])
-                        st.rerun()
-                else:
-                    c_act.markdown("✨ *Principal*")
-                
-                if c_edit.button("✏️ Editar", key=f"edit_{c['id']}"):
+                col1.write(f"💳 **{c.get('cedula_esperada')}** | {c.get('telefono_esperado')}")
+                if col2.button("✏️ Editar", key=f"p_{c['id']}"): 
                     abrir_editor_pago(c)
-                
-                if c_del.button("🗑️ Eliminar", key=f"del_{c['id']}"):
-                    supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
-                    st.rerun()
     with tab3:
         st.subheader("📋 Historial")
         lista_logs = obtener_todos_los_logs(supabase)
