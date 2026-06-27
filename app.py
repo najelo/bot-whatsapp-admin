@@ -231,13 +231,14 @@ with col_centro:
             # 2. Establecer por defecto el día más reciente con registros
             fecha_defecto = df["created_at"].dt.date.max() if not df.empty else datetime.now().date()
 
-            # Filtros interactivos
+            # Filtros interactivos corregidos
             col_f1, col_f2, col_f3 = st.columns(3)
             with col_f1: 
                 f_inicio = st.date_input("Desde", fecha_defecto, key="log_f_ini")
             with col_f2: 
                 f_fin = st.date_input("Hasta", fecha_defecto, key="log_f_fin")
-            with col_f3 = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
+            with col_f3: 
+                f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
             ini_dt = datetime.combine(f_inicio, datetime_time.min)
             fn_dt = datetime.combine(f_fin, datetime_time.max)
