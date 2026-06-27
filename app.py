@@ -241,21 +241,24 @@ with tab3:
 
               
             # --- BOTÓN DE DESCARGA EXCEL ---
-            buffer_excel = io.BytesIO()
-            with pd.ExcelWriter(buffer_excel, engine='openpyxl') as writer:
-                df_filtrado.to_excel(writer, index=False, sheet_name='Historial')
+            col_down1, col_down2 = st.columns(2)
             
-            st.download_button(
-                label="📊 Descargar Filtro en Excel",
-                data=buffer_excel.getvalue(),
-                file_name=f"historial_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Renderizar la Tabla
-            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+            with col_down2:
+                buffer_excel = io.BytesIO()
+                with pd.ExcelWriter(buffer_excel, engine='openpyxl') as writer:
+                    df_filtrado.to_excel(writer, index=False, sheet_name='Historial')
+                    
+                    # CORRECCIÓN: Ajustar el ancho de la columna de fecha (Columna B)
+                    worksheet = writer.sheets['Historial']
+                    worksheet.column_dimensions['B'].width = 25 # Ancho suficiente para la fecha
+                
+                st.download_button(
+                    label="📊 Descargar Filtro en Excel",
+                    data=buffer_excel.getvalue(),
+                    file_name=f"historial_filtrado_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True
+                )
         else:
             st.info("No hay registros en el historial.")
