@@ -70,22 +70,47 @@ with col_centro:
     # --- AQUI EMPIEZAN LAS TABS ---
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
 
-    with tab1:
+   with tab1:
         st.subheader("⚙️ Reglas del Bot")
+        
+        # FORMULARIO DE CREACIÓN
         with st.expander("➕ Crear Nueva Regla"):
             with st.form("form_regla", clear_on_submit=True):
                 palabra = st.text_input("Palabra clave")
-                archivo = st.file_uploader("Archivo")
-                if st.form_submit_button("Crear Regla"):
-                    guardar_configuracion(palabra, archivo)
-                    st.rerun()
-        
+                archivo = st.file_uploader("Archivo (PDF, Imagen, Audio, Video)", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus"])
+                res_texto = st.text_area("O respuesta en texto (si no subes archivo)")
+                
+                if st.form_submit_button("💾 Guardar Regla", type="primary"):
+                    # Lógica de guardado: Prioriza archivo, si no, usa texto
+                    cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
+                    if cont:
+                        guardar_configuracion(palabra, cont)
+                        st.toast("Regla creada con éxito", icon="✅")
+                        st.rerun()
+                    else:
+                        st.error("Debes proporcionar un archivo o un texto de respuesta.")
+
+        # LISTA DE REGLAS EXISTENTES
+        st.write("#### 🔑 Reglas configuradas")
         for conf in obtener_configuraciones():
             with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
+                c1, c2 = st.columns([4, 2])
                 c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                if c2.button("✏️ Editar", key=f"e_{conf['id']}"): 
-                    abrir_editor(conf)
+                
+                # Botones de acción
+                c_edit, c_del = st.columns(2)
+                
+                with c_edit:
+                    if st.button("✏️ Editar", key=f"edit_regla_{conf['id']}", use_container_width=True):
+                        abrir_editor(conf)
+                
+                with c_del:
+                    if st.button("🗑️ Eliminar", key=f"del_regla_{conf['id']}", use_container_width=True):
+                        # Asumiendo que tu función eliminar_regla necesita el ID de la regla y el ID de respuesta
+                        resp_data = conf.get('respuestas') or {}
+                        if eliminar_regla(conf['id'], resp_data.get('id')):
+                            st.toast("Regla eliminada", icon="🗑️")
+                            st.rerun()
 
     with tab2:
         st.subheader("💳 Gestión de Pagos")
