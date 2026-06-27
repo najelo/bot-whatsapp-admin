@@ -29,9 +29,11 @@ def obtener_todos_los_logs(supabase):
             {"created_at": "2026-06-25T18:22:19", "phone": "584149998877", "monto": 3300.0, "estado": "alerta"},
         ]
     try:
-        # ✅ Corregido el espaciado para que esté dentro del bloque try
-        query = supabase.table("historial_pagos").select("*").order("created_at", descend=True).execute()
+        # ✅ Cambiado a desc=True para cumplir con la sintaxis exacta de la v2.x
+        query = supabase.table("historial_pagos").select("*").order("created_at", desc=True).execute()
         return query.data if query.data else []
     except Exception as e:
+        st.error(f"Error al cargar logs de Supabase: {e}")
+        return []
         st.error(f"Error al cargar logs de Supabase: {e}")
         return []
