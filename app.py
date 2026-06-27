@@ -13,7 +13,7 @@ from pdf_utils import exportar_logs_a_pdf
 st.set_page_config(page_title="Admin Bot", layout="wide")
 supabase = get_supabase()
 
-# --- 1. DIÁLOGOS DE EDICIÓN ---
+# --- DIÁLOGOS (Definidos al inicio) ---
 @st.dialog("Editar Regla de Bot", width="large")
 def abrir_editor(conf):
     resp_data = conf.get('respuestas') or {}
@@ -21,14 +21,12 @@ def abrir_editor(conf):
     st.markdown(f"### ✏️ Editando: `{conf.get('palabra_clave')}`")
     nueva_palabra = st.text_input("Palabra clave", value=conf.get('palabra_clave', ''))
     st.write(f"📂 Archivo actual: [Link]({contenido_actual})")
-    
     col_select, col_upload = st.columns(2)
     with col_select:
         archivos = listar_archivos_storage()
         seleccion = st.selectbox("Cambiar por:", ["-- Mantener actual --"] + archivos)
     with col_upload:
         nuevo_archivo = st.file_uploader("Subir archivo NUEVO", type=["pdf", "png", "jpg", "mp4", "mp3"])
-    
     if st.button("💾 Guardar Cambios", type="primary"):
         final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else (supabase.storage.from_("recetarios-helado").get_public_url(seleccion) if seleccion != "-- Mantener actual --" else contenido_actual)
         supabase.table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
@@ -43,7 +41,7 @@ def abrir_editor_pago(cuenta):
         supabase.table("configuracion_pago").update({"cedula_esperada": nueva_cedula, "telefono_esperado": nuevo_telefono}).eq("id", cuenta['id']).execute()
         st.rerun()
 
-# --- 2. LOGIN ---
+# --- LOGIN ---
 if "logueado" not in st.session_state: st.session_state["logueado"] = False
 if not st.session_state["logueado"]:
     _, col_login, _ = st.columns([1, 1.2, 1])
@@ -57,96 +55,34 @@ if not st.session_state["logueado"]:
                     if verificar_login(user, pwd)[0]: st.session_state["logueado"] = True; st.rerun()
     st.stop()
 
-# --- ESTRUCTURA PRINCIPAL DE LA PANTALLA ---
+# --- ESTRUCTURA ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
-
 with col_centro:
-    head1, head2 = st.columns([4, 1])
-    with head1: 
-        st.title("🤖 Panel de Control")
-    with head2:
-        st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False))
-   # 1. Definición de pestañas (debe estar justo después de 'with col_centro:')
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas", "💳 Pagos", "📋 Historial"])
 
-    # 2. Bloque Tab 1
-      with tab1:
-        st.subheader("⚙️ Reglas del Bot")
-        
-        # CREACIÓN
-        with st.expander("➕ Crear Nueva Regla"):
+    with tab1:
+        st.subheader("⚙️ Reglas")
+        with st.expander("➕ Crear"):
             with st.form("form_regla", clear_on_submit=True):
                 palabra = st.text_input("Palabra clave")
-                archivo = st.file_uploader("Subir multimedia/PDF (Opcional)", type=["pdf", "png", "jpg", "mp4", "mp3", "wav"])
-                res_texto = st.text_area("O escribe una respuesta en texto")
-                
-                if st.form_submit_button("Guardar Regla", type="primary"):
-                    # Si hay archivo, lo subimos. Si no, usamos el texto.
-                    contenido = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
-                    if contenido:
-                        guardar_configuracion(palabra, contenido)
-                        st.toast("Regla creada", icon="✅")
-                        st.rerun()
-                    else:
-                        st.warning("Debes subir un archivo o escribir una respuesta.")
-
-        # LISTA, EDICIÓN Y ELIMINACIÓN
-        st.write("#### 🔑 Reglas vigentes")
+                archivo = st.file_uploader("Archivo")
+                if st.form_submit_button("Guardar"):
+                    guardar_configuracion(palabra, archivo)
+                    st.rerun()
         for conf in obtener_configuraciones():
-            with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
-                c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                
-                c_edit, c_del = st.columns(2)
-                with c_edit:
-                    if st.button("✏️ Editar", key=f"edit_{conf['id']}"):
-                        abrir_editor(conf)
-                with c_del:
-                    if st.button("🗑️ Eliminar", key=f"del_{conf['id']}"):
-                        resp_data = conf.get('respuestas') or {}
-                        if eliminar_regla(conf['id'], resp_data.get('id')):
-                            st.toast("Regla eliminada", icon="🗑️")
-                            st.rerun()
+            if st.button(f"✏️ Editar {conf.get('palabra_clave')}", key=f"e{conf['id']}"): abrir_editor(conf)
 
     with tab2:
-        st.subheader("💳 Gestión de Pagos")
-        # FORMULARIO DE CREACIÓN
-        with st.expander("➕ Registrar Nuevo Receptor"):
+        st.subheader("💳 Pagos")
+        with st.expander("➕ Registrar"):
             with st.form("form_pago", clear_on_submit=True):
                 c = st.text_input("Cédula")
                 t = st.text_input("Teléfono")
-                if st.form_submit_button("Registrar"):
+                if st.form_submit_button("Guardar"):
                     guardar_contacto(c, t)
-                    st.toast("Receptor registrado", icon="✅")
                     st.rerun()
-        
-        # LISTA, ACTIVACIÓN, EDICIÓN Y ELIMINACIÓN
         for c in obtener_configuracion_pagos():
-            with st.container(border=True):
-                col1, col2 = st.columns([3, 1])
-                col1.write(f"💳 **{c.get('cedula_esperada')}** | {c.get('telefono_esperado')}")
-                col2.markdown(f"**{'🟢 Activo' if c.get('activo') else '🔴 Inactivo'}**")
-                
-                # Definimos 3 columnas para los botones
-                c_act, c_edit, c_del = st.columns(3)
-                
-                with c_act:
-                    if not c.get('activo'):
-                        if st.button("🚀 Activar", key=f"act_{c['id']}"):
-                            activar_contacto(c['id'])
-                            st.rerun()
-                    else:
-                        st.button("✨ Activo", disabled=True)
-                
-                with c_edit:
-                    if st.button("✏️ Editar", key=f"edit_{c['id']}"):
-                        abrir_editor_pago(c)
-                
-                with c_del:
-                    if st.button("🗑️ Eliminar", key=f"del_{c['id']}"):
-                        supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
-                        st.toast("Cuenta eliminada", icon="🗑️")
-                        st.rerun()
+            if st.button(f"✏️ Editar {c.get('cedula_esperada')}", key=f"p{c['id']}"): abrir_editor_pago(c)
     with tab3:
         st.subheader("📋 Historial")
         lista_logs = obtener_todos_los_logs(supabase)
