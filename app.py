@@ -178,7 +178,7 @@ with col_centro:
         except Exception as e: st.error(f"Error al conectar con la configuración de emojis: {e}")
 
     # --- TAB 3: LOGS / HISTORIAL (Ajustado para Zona Horaria de Venezuela UTC-4) ---
-    with tab3:
+   with tab3:
         st.subheader("📋 Historial Completo de Verificaciones")
         st.caption("Lecturas de comprobantes procesadas por el bot.")
         
@@ -186,14 +186,17 @@ with col_centro:
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # 🕰️ CORRECCIÓN DE HORA: Convertir UTC a hora local (America/Caracas)
+            # 🕰️ CORRECCIÓN DE HORA: Convertir UTC a hora local (America/Caracas) y quitar el tag de zona
             df["created_at"] = pd.to_datetime(df["created_at"])
             df["created_at"] = df["created_at"].dt.tz_convert("America/Caracas").dt.tz_localize(None)
 
+            # OBTENER FECHA ACTUAL REAL EN VENEZUELA PARA LOS FILTROS
+            fecha_actual_venezuela = datetime.now(pd.Timestamp.now(tz="America/Caracas").tz).date()
+
             # Filtros interactivos dentro del Tab
             col_f1, col_f2, col_f3 = st.columns(3)
-            with col_f1: f_inicio = st.date_input("Desde", datetime.now().date(), key="log_f_ini")
-            with col_f2: f_fin = st.date_input("Hasta", datetime.now().date(), key="log_f_fin")
+            with col_f1: f_inicio = st.date_input("Desde", fecha_actual_venezuela, key="log_f_ini")
+            with col_f2: f_fin = st.date_input("Hasta", fecha_actual_venezuela, key="log_f_fin")
             with col_f3: f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
             # Aplicar filtros temporales y de estado basándose en la hora corregida
@@ -231,18 +234,21 @@ with col_centro:
             
             # Formatear visualmente la tabla interactiva
             df_visual = df_filtrado.copy()
-            df_visual["created_at"] = df_visual["created_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
-            
-            st.dataframe(
-                df_visual, 
-                column_config={
-                    "id": "ID",
-                    "created_at": "Fecha y Hora Local", 
-                    "phone": "Teléfono",
-                    "monto": st.column_config.NumberColumn("Monto Procesado", format="Bs. %.2f"),
-                    "estado": "Estado del Pago"
-                },
-                use_container_width=True, hide_index=True
-            )
+            if not df_visual.empty:
+                df_visual["created_at"] = df_visual["created_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
+                
+                st.dataframe(
+                    df_visual, 
+                    column_config={
+                        "id": "ID",
+                        "created_at": "Fecha y Hora Local", 
+                        "phone": "Teléfono",
+                        "monto": st.column_config.NumberColumn("Monto Procesado", format="Bs. %.2f"),
+                        "estado": "Estado del Pago"
+                    },
+                    use_container_width=True, hide_index=True
+                )
+            else:
+                st.info("No hay transacciones registradas para los filtros seleccionados.")
         else:
             st.info("No hay registros en el historial de logs actualmente.")
