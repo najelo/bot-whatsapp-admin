@@ -122,7 +122,7 @@ with col_centro:
                 c1.write(f"🔑 **{conf.get('palabra_clave')}**")
                 if c2.button("✏️ Editar", key=f"edit_{conf['id']}", use_container_width=True): abrir_editor(conf)
 
-    # --- TAB 2: PAGOS (Original con tus formularios y funciones de pagos_utils) ---
+    # --- TAB 2: PAGOS ---
     with tab2:
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
             with st.form("nuevo_pago_form", border=False, clear_on_submit=True):
@@ -177,24 +177,26 @@ with col_centro:
                     st.success("✅ ¡Montos actualizados!"); st.rerun()
         except Exception as e: st.error(f"Error al conectar con la configuración de emojis: {e}")
 
-    # --- TAB 3: LOGS / HISTORIAL (Con Gráfico Avanzado de 24 horas y Filtros Interactivos) ---
+    # --- TAB 3: LOGS / HISTORIAL (Ajustado para Zona Horaria de Venezuela UTC-4) ---
     with tab3:
         st.subheader("📋 Historial Completo de Verificaciones")
         st.caption("Lecturas de comprobantes procesadas por el bot.")
         
         lista_logs = obtener_todos_los_logs(supabase)
         if lista_logs:
-            # Creamos un DataFrame a partir de tus logs para renderizar los componentes interactivos
             df = pd.DataFrame(lista_logs)
-            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None)
+            
+            # 🕰️ CORRECCIÓN DE HORA: Convertir UTC a hora local (America/Caracas)
+            df["created_at"] = pd.to_datetime(df["created_at"])
+            df["created_at"] = df["created_at"].dt.tz_convert("America/Caracas").dt.tz_localize(None)
 
-            # Filtros interactivos añadidos dentro del Tab sin romper tu sidebar
+            # Filtros interactivos dentro del Tab
             col_f1, col_f2, col_f3 = st.columns(3)
             with col_f1: f_inicio = st.date_input("Desde", datetime.now().date(), key="log_f_ini")
             with col_f2: f_fin = st.date_input("Hasta", datetime.now().date(), key="log_f_fin")
             with col_f3: f_estado = st.selectbox("Filtrar por Estado", ["Todos", "Aprobado", "Alerta", "Error"], key="log_f_est")
 
-            # Aplicar filtros de tiempo y estados
+            # Aplicar filtros temporales y de estado basándose en la hora corregida
             ini_dt = datetime.combine(f_inicio, datetime_time.min)
             fn_dt = datetime.combine(f_fin, datetime_time.max)
             df_filtrado = df[(df["created_at"] >= ini_dt) & (df["created_at"] <= fn_dt)]
@@ -202,7 +204,7 @@ with col_centro:
             if f_estado != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["estado"] == f_estado.lower()]
 
-            # 📊 GRÁFICO MEJORADO DE 24 HORAS (Evita que la barra verde se deforme)
+            # 📊 GRÁFICO CON HORARIOS REALES DE VENEZUELA
             st.markdown("#### 📊 Tendencia de Pagos por Hora (Rango Filtrado)")
             df_aprobados = df_filtrado[df_filtrado["estado"] == "aprobado"].copy()
             if not df_aprobados.empty:
@@ -216,7 +218,6 @@ with col_centro:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Botón de exportación original usando tu script 'pdf_utils'
             pdf_data = exportar_logs_a_pdf(lista_logs)
             st.download_button(
                 label="📥 Descargar Historial Completo en PDF",
@@ -228,7 +229,7 @@ with col_centro:
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # Formatear la tabla visual interactiva
+            # Formatear visualmente la tabla interactiva
             df_visual = df_filtrado.copy()
             df_visual["created_at"] = df_visual["created_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
             
@@ -236,7 +237,7 @@ with col_centro:
                 df_visual, 
                 column_config={
                     "id": "ID",
-                    "created_at": "Fecha y Hora", 
+                    "created_at": "Fecha y Hora Local", 
                     "phone": "Teléfono",
                     "monto": st.column_config.NumberColumn("Monto Procesado", format="Bs. %.2f"),
                     "estado": "Estado del Pago"
