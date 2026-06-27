@@ -30,7 +30,7 @@ if not st.session_state["logueado"]:
                     else: st.error(msg)
     st.stop()
 
-# --- ESTRUCTURA PRINCIPAL ---
+# --- ESTRUCTURA ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
 with col_centro:
     st.title("🤖 Panel de Control")
@@ -40,33 +40,49 @@ with col_centro:
         m1.metric("💰 Verificado Hoy", metricas["monto"])
         m2.metric("🖼️ Capturas Leídas", metricas["procesados"])
         m3.metric("🚨 Alertas", metricas["alertas"])
-    
-    # 🔄 Botón de actualización global
-    if st.button("🔄 Actualizar Datos"): st.rerun()
 
     tab1, tab2, tab3 = st.tabs(["⚙️ Reglas del Bot", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
     with tab1:
-        # Aquí va tu lógica original de Reglas que tenías
-        st.write("### 🔑 Reglas del Sistema")
+        # FORMULARIO NUEVA REGLA
+        with st.expander("➕ Nueva Regla"):
+            with st.form("nueva_regla_form", border=False):
+                palabras = st.text_input("Palabra clave")
+                archivo = st.file_uploader("Subir archivo (opcional)", type=["pdf", "png", "jpg", "mp4", "mp3"])
+                res_texto = st.text_area("Respuesta texto")
+                if st.form_submit_button("Guardar Regla", type="primary"):
+                    cont = subir_archivo_al_storage(archivo.getvalue(), archivo.name) if archivo else res_texto
+                    guardar_configuracion(palabras, cont)
+                    st.rerun()
+        
+        st.write("#### 🔑 Reglas existentes")
         for conf in obtener_configuraciones():
             with st.container(border=True):
                 st.write(f"🔑 **{conf.get('palabra_clave')}**")
 
     with tab2:
-        # Aquí va tu lógica original de Pagos
-        st.write("### 💳 Cuentas Registradas")
+        # FORMULARIO NUEVO PAGO
+        with st.expander("➕ Registrar Nuevo Receptor"):
+            with st.form("nuevo_pago_form", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                ced = c1.text_input("Cédula")
+                tel = c2.text_input("Teléfono")
+                if st.form_submit_button("Registrar Pago Móvil"):
+                    guardar_contacto(ced, tel)
+                    st.rerun()
+        
+        st.write("#### 📋 Cuentas Registradas")
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
                 st.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
 
     with tab3:
-        st.subheader("📋 Historial Completo de Verificaciones")
+        st.subheader("📋 Historial Completo")
         lista_logs = obtener_todos_los_logs(supabase)
         if lista_logs:
             df = pd.DataFrame(lista_logs)
             
-            # --- NUEVO GRÁFICO (Integrado correctamente) ---
+            # Gráfico de salud
             st.markdown("#### 🥧 Salud de las Transacciones")
             conteo = df['estado'].value_counts()
             fig = px.pie(values=conteo.values, names=conteo.index, 
@@ -74,8 +90,5 @@ with col_centro:
             fig.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=250)
             st.plotly_chart(fig, use_container_width=True)
             
-            # --- TABLA Y FILTROS ---
-            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
+            # Tabla
             st.dataframe(df, use_container_width=True)
-        else:
-            st.info("No hay registros en el historial.")
