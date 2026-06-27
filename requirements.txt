@@ -4,3 +4,4 @@ uvicorn
 pandas
 supabase
 reportlab
+openpyxl
