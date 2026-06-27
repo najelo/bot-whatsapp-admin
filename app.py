@@ -89,20 +89,43 @@ with col_centro:
 
     with tab2:
         st.subheader("💳 Gestión de Pagos")
+        # FORMULARIO DE CREACIÓN
         with st.expander("➕ Registrar Nuevo Receptor"):
             with st.form("form_pago", clear_on_submit=True):
                 c = st.text_input("Cédula")
                 t = st.text_input("Teléfono")
                 if st.form_submit_button("Registrar"):
                     guardar_contacto(c, t)
+                    st.toast("Receptor registrado", icon="✅")
                     st.rerun()
         
+        # LISTA, ACTIVACIÓN, EDICIÓN Y ELIMINACIÓN
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
                 col1.write(f"💳 **{c.get('cedula_esperada')}** | {c.get('telefono_esperado')}")
-                if col2.button("✏️ Editar", key=f"p_{c['id']}"): 
-                    abrir_editor_pago(c)
+                col2.markdown(f"**{'🟢 Activo' if c.get('activo') else '🔴 Inactivo'}**")
+                
+                # Definimos 3 columnas para los botones
+                c_act, c_edit, c_del = st.columns(3)
+                
+                with c_act:
+                    if not c.get('activo'):
+                        if st.button("🚀 Activar", key=f"act_{c['id']}"):
+                            activar_contacto(c['id'])
+                            st.rerun()
+                    else:
+                        st.button("✨ Activo", disabled=True)
+                
+                with c_edit:
+                    if st.button("✏️ Editar", key=f"edit_{c['id']}"):
+                        abrir_editor_pago(c)
+                
+                with c_del:
+                    if st.button("🗑️ Eliminar", key=f"del_{c['id']}"):
+                        supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
+                        st.toast("Cuenta eliminada", icon="🗑️")
+                        st.rerun()
     with tab3:
         st.subheader("📋 Historial")
         lista_logs = obtener_todos_los_logs(supabase)
