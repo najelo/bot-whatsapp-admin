@@ -153,7 +153,7 @@ with col_centro:
                         "style": {"stroke": "#00f2fe"}
                     })
                 
-                # ACCIONES DEL LIENZO
+                # ACCIONES DEL LIENZO (AÑADIR NODOS)
                 col_c1, col_c2 = st.columns([3, 1])
                 with col_c2:
                     st.markdown("##### ⚙️ Acciones")
@@ -175,7 +175,6 @@ with col_centro:
                         }
                         
                         try:
-                            # CORREGIDO: Se cambió 'nodos' por 'nodos_flujo' según el esquema real
                             supabase.table("nodos_flujo").insert(nuevo_nodo_db).execute()
                             st.toast("¡Bloque añadido al lienzo!", icon="🚀")
                             st.rerun()
@@ -185,14 +184,64 @@ with col_centro:
                 with col_c1:
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
-                        
                         elementos_canvas = flow_nodes + flow_edges
                         estilos_lienzo = {"height": "450px", "width": "100%"}
                         
                         try:
-                            react_flow(name=id_canvas, elements=elementos_canvas, flow_styles=estilos_lienzo)
+                            # Capturamos el estado de retorno de react_flow para las interacciones del usuario
+                            flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles=estilos_lienzo)
+                            
+                            # INTERACTIVIDAD: Procesar cables nuevos (Conexiones)
+                            if flow_action and "action" in flow_action:
+                                if flow_action["action"] == "connect":
+                                    origen = flow_action["edge"]["source"]
+                                    destino = flow_action["edge"]["target"]
+                                    
+                                    # Insertar la unión en Supabase si no existe
+                                    nueva_con = {
+                                        "flujo_id": fl_seleccionado['id'],
+                                        "nodo_origen_id": int(origen),
+                                        "nodo_destino_id": int(destino)
+                                    }
+                                    supabase.table("conexiones_flujo").insert(nueva_con).execute()
+                                    st.rerun()
                         except Exception as e:
                             st.error(f"Error al renderizar el lienzo visual: {e}")
+
+                # --- PANEL DE EDICIÓN DE CONTENIDO ---
+                st.markdown("---")
+                st.write("### 📝 Editar Bloque del Flujo")
+                
+                # Desplegable para seleccionar qué nodo queremos modificar textualmente
+                opciones_nodos = {f"📦 [{n['tipo_nodo'].upper()}] - {n['configuracion'].get('titulo', 'Sin Título')} (ID: {n['id']})": n for n in nodos}
+                
+                if opciones_nodos:
+                    nodo_a_editar_sel = st.selectbox("Selecciona el bloque que deseas modificar:", list(opciones_nodos.keys()))
+                    nodo_actual = opciones_nodos[nodo_a_editar_sel]
+                    
+                    with st.form("form_edicion_nodo", border=True):
+                        st.write(f"✏️ Configurando Parámetros del Nodo ID: `{nodo_actual['id']}`")
+                        nuevo_titulo = st.text_input("Etiqueta / Título del bloque:", value=nodo_actual['configuracion'].get('titulo', ''))
+                        
+                        # Si es un nodo de texto, permitimos modificar el cuerpo del mensaje del bot
+                        texto_mensaje = ""
+                        if nodo_actual['tipo_nodo'] == "texto":
+                            texto_mensaje = st.text_area("Mensaje de WhatsApp a enviar:", value=nodo_actual['configuracion'].get('mensaje', ''))
+                        
+                        if st.form_submit_button("💾 Actualizar Contenido del Bloque", type="primary"):
+                            config_actualizada = nodo_actual['configuracion']
+                            config_actualizada['titulo'] = nuevo_titulo
+                            if nodo_actual['tipo_nodo'] == "texto":
+                                config_actualizada['mensaje'] = texto_mensaje
+                                
+                            try:
+                                supabase.table("nodos_flujo").update({"configuracion": config_actualizada}).eq("id", nodo_actual['id']).execute()
+                                st.success("¡Contenido del bloque actualizado con éxito!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al actualizar la configuración: {e}")
+                else:
+                    st.info("No hay bloques disponibles para editar todavía.")
 
     # --- TAB 2: PAGOS ---
     with tab2:
