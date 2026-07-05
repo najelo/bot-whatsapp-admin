@@ -7,7 +7,7 @@ import io
 from auth_utils import verificar_login, get_supabase
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
 
-# Módulos del Motor de Flujos (Sustituyen la lógica de clientes y respuestas antiguas)
+# Módulos del Motor de Flujos
 from db_flow import obtener_todos_los_flujos, crear_nuevo_flujo, obtener_datos_lienzo
 
 # Nuevos módulos divididos
@@ -30,7 +30,7 @@ if not st.session_state["logueado"]:
             with st.form("login_form", border=False):
                 user = st.text_input("Usuario")
                 pwd = st.text_input("Contraseña", type="password")
-                if st.form_submit_button("Entrar", use_container_width=True, type="primary"):
+                if st.form_submit_button("Entrar", width='stretch', type="primary"):
                     valido, msg = verificar_login(user, pwd)
                     if valido: 
                         st.session_state["logueado"] = True
@@ -46,7 +46,7 @@ def abrir_editor_pago(cuenta):
     nueva_cedula = st.text_input("Nueva Cédula", value=cuenta.get('cedula_esperada', ''))
     nuevo_telefono = st.text_input("Nuevo Teléfono", value=cuenta.get('telefono_esperado', ''))
     st.markdown("---")
-    if st.button("💾 Guardar Cambios Cuenta", use_container_width=True, type="primary"):
+    if st.button("💾 Guardar Cambios Cuenta", width='stretch', type="primary"):
         try:
             supabase.table("configuracion_pago").update({"cedula_esperada": nueva_cedula, "telefono_esperado": nuevo_telefono}).eq("id", cuenta['id']).execute()
             st.toast("Cuenta actualizada con éxito", icon="✅")
@@ -63,14 +63,14 @@ with col_centro:
         st.title("🤖 Panel de Control")
     with head2:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", use_container_width=True)
+        st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", width='stretch')
     
     # 📊 DASHBOARD DE MÉTRICAS
     col_titulo_met, col_btn_refresh = st.columns([3, 1])
     with col_titulo_met:
         st.write("#### 📊 Actividad de Hoy")
     with col_btn_refresh:
-        if st.button("🔄 Actualizar Métricas", use_container_width=True, type="secondary"):
+        if st.button("🔄 Actualizar Métricas", width='stretch', type="secondary"):
             st.rerun()
             
     metricas = obtener_metricas_del_dia(supabase)
@@ -88,11 +88,10 @@ with col_centro:
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-    # --- TAB 1: CONSTRUCTOR DE FLUJOS (Reemplaza Clientes y Respuestas antiguas) ---
+    # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
     with tab1:
         st.write("### 🔀 Flujos Automatizados de Conversación")
         
-        # Formulario para registrar un flujo nuevo
         with st.expander("➕ Crear Nuevo Flujo Visual"):
             with st.form("nuevo_flujo_form", border=False):
                 nombre_flujo = st.text_input("Nombre identificativo de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
@@ -108,7 +107,6 @@ with col_centro:
                     else:
                         st.warning("Por favor completa el nombre del flujo y su palabra clave.")
 
-        # Listado de flujos existentes mapeados
         st.write("#### 🔑 Lienzos y Disparadores Activos")
         flujos_actuales = obtener_todos_los_flujos()
         
@@ -120,8 +118,7 @@ with col_centro:
                     c1, c2 = st.columns([4, 1])
                     c1.write(f"🗺️ **{fl.get('nombre')}** — Disparador: `{fl.get('palabra_clave')}`")
                     
-                    # Al hacer clic en un flujo, listamos el mapa lúdico de datos que posee
-                    if c2.button("👁️ Inspeccionar Red", key=f"flow_{fl['id']}", use_container_width=True):
+                    if c2.button("👁️ Inspeccionar Red", key=f"flow_{fl['id']}", width='stretch'):
                         nodos, conexiones = obtener_datos_lienzo(fl['id'])
                         
                         st.markdown("---")
@@ -150,7 +147,7 @@ with col_centro:
                     tel = st.text_input("Teléfono Receptor")
                 _, c_btn = st.columns([2, 1])
                 with c_btn:
-                    if st.form_submit_button("Registrar Pago Móvil", use_container_width=True):
+                    if st.form_submit_button("Registrar Pago Móvil", width='stretch'):
                         if ced and tel:
                             guardar_contacto(ced, tel)
                             st.toast("¡Pago Móvil registrado!", icon="✅")
@@ -171,16 +168,16 @@ with col_centro:
                 col_act, col_edit, col_del = st.columns([2, 1, 1])
                 with col_act:
                     if not c.get('activo'):
-                        if st.button("🚀 Activar", key=f"act_{c['id']}", use_container_width=True): 
+                        if st.button("🚀 Activar", key=f"act_{c['id']}", width='stretch'): 
                             activar_contacto(c['id'])
                             st.rerun()
                     else: 
-                        st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, use_container_width=True)
+                        st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, width='stretch')
                 with col_edit:
-                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", use_container_width=True): 
+                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", width='stretch'): 
                         abrir_editor_pago(c)
                 with col_del:
-                    if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", use_container_width=True, type="secondary"):
+                    if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", width='stretch', type="secondary"):
                         try:
                             supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
                             st.toast("Cuenta eliminada", icon="🗑️")
@@ -204,7 +201,7 @@ with col_centro:
                     nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
                 _, c_btn_em = st.columns([2, 1])
                 with c_btn_em: 
-                    guardar_montos = st.form_submit_button("💾 Guardar Montos", use_container_width=True)
+                    guardar_montos = st.form_submit_button("💾 Guardar Montos", width='stretch')
                 if guardar_montos:
                     for em, monto_nuevo in nuevos_valores.items(): 
                         supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
@@ -242,7 +239,7 @@ with col_centro:
                 st.download_button("📊 Descargar Excel", data=buffer.getvalue(), 
                                    file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 
-                st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+                st.dataframe(df_filtrado, width='stretch', hide_index=True)
             else:
                 st.warning("No se encontraron registros con los filtros actuales. Prueba cambiando el rango de fechas.")
         else:
