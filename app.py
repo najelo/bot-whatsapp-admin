@@ -152,36 +152,47 @@ with col_centro:
                         "animated": True,
                         "style": {"stroke": "#00f2fe"}
                     })
-              # ACCIONES DEL LIENZO
+                
+                # ACCIONES DEL LIENZO
                 col_c1, col_c2 = st.columns([3, 1])
                 with col_c2:
                     st.markdown("##### ⚙️ Acciones")
                     tipo_nuevo_nodo = st.selectbox("Añadir bloque al lienzo:", ["Respuesta de Texto", "Condición (Filtro)", "Imagen/Media"])
                     
                     if st.button("➕ Soltar en Lienzo", width='stretch', type="primary"):
-                        # Mapeamos el nombre estético al tipo que espera tu base de datos/lienzo
                         tipo_mapeado = "texto"
                         if tipo_nuevo_nodo == "Condición (Filtro)":
                             tipo_mapeado = "condicion"
                         elif tipo_nuevo_nodo == "Imagen/Media":
                             tipo_mapeado = "media"
                             
-                        # Estructuramos el nuevo nodo con coordenadas iniciales para que no se pise con el INICIO
                         nuevo_nodo_db = {
                             "flujo_id": fl_seleccionado['id'],
                             "tipo_nodo": tipo_mapeado,
                             "configuracion": {"titulo": f"Nuevo {tipo_nuevo_nodo}"},
-                            "posicion_x": 300.0,  # Lo colocamos un poco a la derecha del inicio
+                            "posicion_x": 300.0,
                             "posicion_y": 200.0
                         }
                         
                         try:
-                            # Insertamos directo en Supabase a la tabla de tus nodos
-                            supabase.table("nodos").insert(nuevo_nodo_db).execute()
+                            # CORREGIDO: Se cambió 'nodos' por 'nodos_flujo' según el esquema real
+                            supabase.table("nodos_flujo").insert(nuevo_nodo_db).execute()
                             st.toast("¡Bloque añadido al lienzo!", icon="🚀")
-                            st.rerun()  # Forzamos recarga para que lea el nuevo nodo de la BD y lo dibuje
+                            st.rerun()
                         except Exception as e:
                             st.error(f"Error al guardar el bloque: {e}")
+                
+                with col_c1:
+                    with st.container(border=True):
+                        id_canvas = f"flow_{str(fl_seleccionado['id'])}"
+                        
+                        elementos_canvas = flow_nodes + flow_edges
+                        estilos_lienzo = {"height": "450px", "width": "100%"}
+                        
+                        try:
+                            react_flow(name=id_canvas, elements=elementos_canvas, flow_styles=estilos_lienzo)
+                        except Exception as e:
+                            st.error(f"Error al renderizar el lienzo visual: {e}")
 
     # --- TAB 2: PAGOS ---
     with tab2:
