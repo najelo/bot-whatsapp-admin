@@ -14,7 +14,7 @@ from db_flow import obtener_todos_los_flujos, crear_nuevo_flujo, obtener_datos_l
 from log_utils import obtener_metricas_del_dia, obtener_todos_los_logs
 from pdf_utils import exportar_logs_a_pdf
 
-st.set_page_config(page_title="Admin Bot", layout="wide")
+st.set_page_config(page_title="Admin Bot - Flow Builder", layout="wide")
 supabase = get_supabase()
 
 # --- LOGIN ---
@@ -88,7 +88,7 @@ with col_centro:
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-    # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
+    # --- TAB 1: CONSTRUCTOR DE FLUJOS (ESTILO SENDYPRO) ---
     with tab1:
         st.write("### 🔀 Constructor Visual de Flujos (Flow Builder)")
         
@@ -121,127 +121,171 @@ with col_centro:
                 nodos, conexiones = obtener_datos_lienzo(fl_seleccionado['id'])
                 
                 st.markdown("---")
-                st.write(f"### 🎨 Lienzo de Trabajo: `{fl_seleccionado['nombre']}`")
                 
-                from streamlit_react_flow import react_flow
+                # REPLICANDO EL DISEÑO DE COLUMNAS DE SENDYPRO
+                # Columna 1: Paleta de Componentes Rápidos | Columna 2: El Lienzo de Trabajo Grande
+                col_paleta, col_canvas = st.columns([1.2, 3.8])
                 
-                flow_nodes = []
-                flow_edges = []
-                
-                # REVISIÓN Y FORMATEO ESTRICTO DE NODOS
-                for n in nodos:
-                    flow_nodes.append({
-                        "id": str(n['id']),
-                        "data": {"label": f"{n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
-                        "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
-                        "style": {
-                            "background": "#1e1e24" if n['tipo_nodo'] == "inicio" else "#2e3f7f",
-                            "color": "white",
-                            "border": "1px solid #7928ca",
-                            "borderRadius": "8px",
-                            "padding": "10px"
-                        }
-                    })
-                
-                # REVISIÓN Y FORMATEO ESTRICTO DE CONEXIONES
-                for index, con in enumerate(conexiones):
-                    flow_edges.append({
-                        "id": f"edge_{index}",
-                        "source": str(con['nodo_origen_id']),
-                        "target": str(con['nodo_destino_id']),
-                        "animated": True,
-                        "style": {"stroke": "#00f2fe"}
-                    })
-                
-                # ACCIONES DEL LIENZO (AÑADIR NODOS)
-                col_c1, col_c2 = st.columns([3, 1])
-                with col_c2:
-                    st.markdown("##### ⚙️ Acciones")
-                    tipo_nuevo_nodo = st.selectbox("Añadir bloque al lienzo:", ["Respuesta de Texto", "Condición (Filtro)", "Imagen/Media"])
+                with col_paleta:
+                    st.markdown("### 🧩 Agregar Nodo")
+                    st.write("Selecciona una tarjeta para soltarla en tu red de automatización:")
                     
-                    if st.button("➕ Soltar en Lienzo", width='stretch', type="primary"):
-                        tipo_mapeado = "texto"
-                        if tipo_nuevo_nodo == "Condición (Filtro)":
-                            tipo_mapeado = "condicion"
-                        elif tipo_nuevo_nodo == "Imagen/Media":
-                            tipo_mapeado = "media"
-                            
-                        nuevo_nodo_db = {
-                            "flujo_id": fl_seleccionado['id'],
-                            "tipo_nodo": tipo_mapeado,
-                            "configuracion": {"titulo": f"Nuevo {tipo_nuevo_nodo}"},
-                            "posicion_x": 300.0,
-                            "posicion_y": 200.0
-                        }
+                    # Simulación de botones de tarjetas visuales como los de la captura
+                    if st.button("🟢 INICIO (Trigger)", icon="🚀", width="stretch", help="Punto de entrada del bot"):
+                        st.info("El nodo inicial ya se genera automáticamente con la palabra clave.")
                         
-                        try:
-                            supabase.table("nodos_flujo").insert(nuevo_nodo_db).execute()
-                            st.toast("¡Bloque añadido al lienzo!", icon="🚀")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al guardar el bloque: {e}")
-                
-                with col_c1:
+                    if st.button("📝 Contenido (Texto)", icon="💬", width="stretch"):
+                        nuevo_nodo = {
+                            "flujo_id": fl_seleccionado['id'], "tipo_nodo": "texto",
+                            "configuracion": {"titulo": "Nuevo Bloque de Mensaje", "mensaje": "Escribe aquí tu respuesta automática..."},
+                            "posicion_x": 350.0, "posicion_y": 220.0
+                        }
+                        supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
+                        st.rerun()
+                        
+                    if st.button("🔀 Menú / Condición", icon="⚡", width="stretch"):
+                        nuevo_nodo = {
+                            "flujo_id": fl_seleccionado['id'], "tipo_nodo": "condicion",
+                            "configuracion": {"titulo": "Filtro de Validación", "regla": "monto_correcto"},
+                            "posicion_x": 350.0, "posicion_y": 220.0
+                        }
+                        supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
+                        st.rerun()
+                        
+                    if st.button("🖼️ Media (Imagen)", icon="📁", width="stretch"):
+                        nuevo_nodo = {
+                            "flujo_id": fl_seleccionado['id'], "tipo_nodo": "media",
+                            "configuracion": {"titulo": "Enviar Captura/Imagen", "url": ""},
+                            "posicion_x": 350.0, "posicion_y": 220.0
+                        }
+                        supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
+                        st.rerun()
+
+                with col_canvas:
+                    st.write(f"### 🎨 Lienzo Activo: `{fl_seleccionado['nombre']}`")
+                    from streamlit_react_flow import react_flow
+                    
+                    flow_nodes = []
+                    flow_edges = []
+                    
+                    # Formateo estricto de nodos con estilos de color dinámicos según el tipo de bloque
+                    for n in nodos:
+                        color_bloque = "#2e3f7f"  # Azul por defecto
+                        if n['tipo_nodo'] == "inicio":
+                            color_bloque = "#1b4332"  # Verde para el trigger de entrada
+                        elif n['tipo_nodo'] == "condicion":
+                            color_bloque = "#7400b8"  # Morado para filtros/menús
+                        elif n['tipo_nodo'] == "media":
+                            color_bloque = "#ee6c4d"  # Naranja para imágenes
+                            
+                        flow_nodes.append({
+                            "id": str(n['id']),
+                            "data": {"label": f"🆔 {n['id']} - {n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
+                            "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
+                            "style": {
+                                "background": color_bloque,
+                                "color": "white",
+                                "border": "2px solid #ffffff",
+                                "borderRadius": "10px",
+                                "padding": "12px",
+                                "fontWeight": "bold",
+                                "fontSize": "12px"
+                            }
+                        })
+                    
+                    # Formateo de las conexiones estables
+                    for index, con in enumerate(conexiones):
+                        flow_edges.append({
+                            "id": f"edge_{index}",
+                            "source": str(con['nodo_origen_id']),
+                            "target": str(con['nodo_destino_id']),
+                            "animated": True,
+                            "style": {"stroke": "#00f2fe", "strokeWidth": 3}
+                        })
+                    
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
                         elementos_canvas = flow_nodes + flow_edges
-                        estilos_lienzo = {"height": "450px", "width": "100%"}
+                        estilos_lienzo = {"height": "500px", "width": "100%", "background": "#121214"}
                         
                         try:
-                            # Capturamos el estado de retorno de react_flow para las interacciones del usuario
+                            # Renderizado e intercepción de interacciones en tiempo real
                             flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles=estilos_lienzo)
                             
-                            # INTERACTIVIDAD: Procesar cables nuevos (Conexiones)
+                            # INTERACTIVIDAD DE CABLES: Si el usuario arrastra y conecta dos burbujas en pantalla
                             if flow_action and "action" in flow_action:
                                 if flow_action["action"] == "connect":
                                     origen = flow_action["edge"]["source"]
                                     destino = flow_action["edge"]["target"]
                                     
-                                    # Insertar la unión en Supabase si no existe
                                     nueva_con = {
                                         "flujo_id": fl_seleccionado['id'],
                                         "nodo_origen_id": int(origen),
                                         "nodo_destino_id": int(destino)
                                     }
                                     supabase.table("conexiones_flujo").insert(nueva_con).execute()
+                                    st.toast("🔗 ¡Nodos enlazados con éxito!", icon="⚡")
                                     st.rerun()
                         except Exception as e:
-                            st.error(f"Error al renderizar el lienzo visual: {e}")
+                            st.error(f"Error en el lienzo: {e}")
 
-                # --- PANEL DE EDICIÓN DE CONTENIDO ---
+                # --- CONFIGURADOR DE PARÁMETROS DINÁMICOS ---
                 st.markdown("---")
-                st.write("### 📝 Editar Bloque del Flujo")
+                st.write("### ⚙️ Propiedades y Edición de Nodos")
                 
-                # Desplegable para seleccionar qué nodo queremos modificar textualmente
-                opciones_nodos = {f"📦 [{n['tipo_nodo'].upper()}] - {n['configuracion'].get('titulo', 'Sin Título')} (ID: {n['id']})": n for n in nodos}
+                # Desplegable inteligente para seleccionar qué caja del mapa queremos alterar estructuralmente
+                opciones_nodos = {f"🔑 ID: {n['id']} | [{n['tipo_nodo'].upper()}] - {n['configuracion'].get('titulo', 'Sin Nombre')}": n for n in nodos}
                 
                 if opciones_nodos:
-                    nodo_a_editar_sel = st.selectbox("Selecciona el bloque que deseas modificar:", list(opciones_nodos.keys()))
+                    nodo_a_editar_sel = st.selectbox("🎯 Elige el bloque del lienzo que deseas configurar internamente:", list(opciones_nodos.keys()))
                     nodo_actual = opciones_nodos[nodo_a_editar_sel]
                     
                     with st.form("form_edicion_nodo", border=True):
-                        st.write(f"✏️ Configurando Parámetros del Nodo ID: `{nodo_actual['id']}`")
-                        nuevo_titulo = st.text_input("Etiqueta / Título del bloque:", value=nodo_actual['configuracion'].get('titulo', ''))
+                        st.markdown(f"#### ⚙️ Editando Propiedades del Nodo `#{nodo_actual['id']}`")
+                        nuevo_titulo = st.text_input("Nombre de la caja (Label):", value=nodo_actual['configuracion'].get('titulo', ''))
                         
-                        # Si es un nodo de texto, permitimos modificar el cuerpo del mensaje del bot
-                        texto_mensaje = ""
+                        # Renderizado condicional según el tipo de caja que seleccionó el usuario
                         if nodo_actual['tipo_nodo'] == "texto":
-                            texto_mensaje = st.text_area("Mensaje de WhatsApp a enviar:", value=nodo_actual['configuracion'].get('mensaje', ''))
-                        
-                        if st.form_submit_button("💾 Actualizar Contenido del Bloque", type="primary"):
-                            config_actualizada = nodo_actual['configuracion']
-                            config_actualizada['titulo'] = nuevo_titulo
-                            if nodo_actual['tipo_nodo'] == "texto":
-                                config_actualizada['mensaje'] = texto_mensaje
+                            texto_mensaje = st.text_area("💬 Mensaje de respuesta (WhatsApp):", value=nodo_actual['configuracion'].get('mensaje', ''))
+                        elif nodo_actual['tipo_nodo'] == "condicion":
+                            opciones_filtros = ["Validar Pago Móvil", "Comprobar Referencia Única", "Validar Monto Exacto"]
+                            filtro_actual = nodo_actual['configuracion'].get('regla', 'Validar Pago Móvil')
+                            regla_sel = st.selectbox("🛠️ Regla de automatización del Bot:", opciones_filtros, index=opciones_filtros.index(filtro_actual) if filtro_actual in opciones_filtros else 0)
+                        elif nodo_actual['tipo_nodo'] == "media":
+                            url_media = st.text_input("🔗 URL del archivo multimedia adjunto:", value=nodo_actual['configuracion'].get('url', ''))
+                            
+                        # Botones de ejecución en base de datos
+                        col_btn1, col_btn2 = st.columns([4, 1])
+                        with col_btn1:
+                            if st.form_submit_button("💾 Guardar Cambios en Servidor", type="primary", width="stretch"):
+                                config_actualizada = nodo_actual['configuracion']
+                                config_actualizada['titulo'] = nuevo_titulo
                                 
-                            try:
+                                if nodo_actual['tipo_nodo'] == "texto":
+                                    config_actualizada['mensaje'] = texto_mensaje
+                                elif nodo_actual['tipo_nodo'] == "condicion":
+                                    config_actualizada['regla'] = regla_sel
+                                elif nodo_actual['tipo_nodo'] == "media":
+                                    config_actualizada['url'] = url_media
+                                    
                                 supabase.table("nodos_flujo").update({"configuracion": config_actualizada}).eq("id", nodo_actual['id']).execute()
-                                st.success("¡Contenido del bloque actualizado con éxito!")
+                                st.toast("¡Bloque guardado exitosamente!", icon="✅")
                                 st.rerun()
-                            except Exception as e:
-                                st.error(f"Error al actualizar la configuración: {e}")
+                        with col_btn2:
+                            # Añadimos la opción de eliminar nodos obsoletos del mapa interactivo
+                            if st.form_submit_button("🗑️ Eliminar Nodo", type="secondary", width="stretch"):
+                                if nodo_actual['tipo_nodo'] == "inicio":
+                                    st.error("No puedes eliminar el nodo de INICIO base.")
+                                else:
+                                    # Limpiamos primero sus cables asociados para evitar fallas de llaves foráneas
+                                    supabase.table("conexiones_flujo").delete().eq("nodo_origen_id", nodo_actual['id']).execute()
+                                    supabase.table("conexiones_flujo").delete().eq("nodo_destino_id", nodo_actual['id']).execute()
+                                    # Eliminamos el bloque definitivo
+                                    supabase.table("nodos_flujo").delete().eq("id", nodo_actual['id']).execute()
+                                    st.toast("Bloque removido de la red", icon="🗑️")
+                                    st.rerun()
                 else:
-                    st.info("No hay bloques disponibles para editar todavía.")
+                    st.info("Tu lienzo se encuentra vacío. Presiona cualquier botón de la paleta izquierda para soltar tu primer elemento.")
 
     # --- TAB 2: PAGOS ---
     with tab2:
