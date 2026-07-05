@@ -165,9 +165,9 @@ with col_centro:
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
                         
-                        # BLOQUE MODIFICADO: Triple verificación de firmas para evitar el TypeError
+                        # BLOQUE MODIFICADO: Sistema de 4 contingencias robustas de firmas para react_flow
                         try:
-                            # Opción A: Versiones modernas con parámetros nombrados separados
+                            # Opción A: Versiones modernas con parámetros nombrados discretos
                             react_flow(id=id_canvas, nodes=flow_nodes, edges=flow_edges, height=450)
                         except TypeError:
                             try:
@@ -175,9 +175,13 @@ with col_centro:
                                 elementos_canvas = flow_nodes + flow_edges
                                 react_flow(id=id_canvas, elements=elementos_canvas, height=450)
                             except TypeError:
-                                # Opción C: Versiones antiguas basadas enteramente en argumentos posicionales ordenados
-                                elementos_canvas = flow_nodes + flow_edges
-                                react_flow(id_canvas, elementos_canvas, height=450)
+                                try:
+                                    # Opción C: Posicional puro con nodos y bordes separados (Muy común en forks estables)
+                                    react_flow(id_canvas, flow_nodes, flow_edges, 450)
+                                except TypeError:
+                                    # Opción D: Posicional puro con elementos unidos y altura posicional entera
+                                    elementos_canvas = flow_nodes + flow_edges
+                                    react_flow(id_canvas, elementos_canvas, 450)
 
     # --- TAB 2: PAGOS ---
     with tab2:
