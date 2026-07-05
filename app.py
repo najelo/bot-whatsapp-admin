@@ -39,27 +39,36 @@ if not st.session_state["logueado"]:
                         st.error(msg)
     st.stop()
 
+
 # --- MODALES FLOTANTES DE EDICIÓN Y CREACIÓN (ESTILO DIALOG) ---
 
 @st.dialog("📝 Configurar Nuevo Bloque", width="medium")
 def modal_crear_nodo(flujo_id, tipo_nodo):
     st.markdown(f"### 🧩 Nuevo Bloque: **{tipo_nodo.upper()}**")
-    titulo_inicial = st.text_input("Asigna un nombre para identificar este bloque:", placeholder="Ej: Mensaje de Bienvenida")
+    titulo_inicial = st.text_input("Asigna un nombre para identificar este bloque:", placeholder="Ej: Enviar Catálogo Digital")
+    
+    config = {}
     
     if tipo_nodo == "texto":
         mensaje_inicial = st.text_area("💬 Mensaje de WhatsApp que enviará el Bot:")
+        config["mensaje"] = mensaje_inicial
+        
+    elif tipo_nodo == "media":
+        tipo_m = st.selectbox("📂 Tipo de archivo a enviar:", ["Imagen", "Documento (PDF)", "Audio / Nota de Voz"])
+        url_inicial = st.text_input("🔗 URL pública del archivo:", placeholder="https://tusitio.com/archivo.mp3")
+        tiempo_espera = st.slider("⏳ Tiempo de espera antes de enviar (segundos):", min_value=0, max_value=30, value=2, step=1)
+        
+        config["tipo_media"] = tipo_m.lower()
+        config["url"] = url_inicial
+        config["delay"] = tiempo_espera
+        
+    elif tipo_nodo == "condicion":
+        config["regla"] = "Validar Pago Móvil"
     
     st.markdown("---")
     if st.button("➕ Soltar en el Lienzo", width='stretch', type="primary"):
         if titulo_inicial:
-            config = {"titulo": titulo_inicial}
-            if tipo_nodo == "texto":
-                config["mensaje"] = mensaje_inicial
-            elif tipo_nodo == "condicion":
-                config["regla"] = "Validar Pago Móvil"
-            elif tipo_nodo == "media":
-                config["url"] = ""
-
+            config["titulo"] = titulo_inicial
             nuevo_nodo = {
                 "flujo_id": flujo_id,
                 "tipo_nodo": tipo_nodo,
@@ -76,6 +85,7 @@ def modal_crear_nodo(flujo_id, tipo_nodo):
         else:
             st.warning("Debes asignarle un nombre al bloque.")
 
+
 @st.dialog("⚙️ Editar Propiedades del Bloque", width="medium")
 def modal_editar_nodo(nodo):
     st.markdown(f"### ✏️ Configurando: **{nodo['configuracion'].get('titulo', 'Bloque')}**")
@@ -86,14 +96,28 @@ def modal_editar_nodo(nodo):
     if nodo['tipo_nodo'] == "texto":
         nuevo_mensaje = st.text_area("💬 Mensaje de respuesta (WhatsApp):", value=nodo['configuracion'].get('mensaje', ''))
         config_actualizada['mensaje'] = nuevo_mensaje
+        
     elif nodo['tipo_nodo'] == "condicion":
         opciones_filtros = ["Validar Pago Móvil", "Comprobar Referencia Única", "Validar Monto Exacto"]
         filtro_actual = nodo['configuracion'].get('regla', 'Validar Pago Móvil')
         regla_sel = st.selectbox("🛠️ Regla de automatización:", opciones_filtros, index=opciones_filtros.index(filtro_actual) if filtro_actual in opciones_filtros else 0)
         config_actualizada['regla'] = regla_sel
+        
     elif nodo['tipo_nodo'] == "media":
+        st.markdown("#### 📂 Configuración de Archivo Multimedia")
+        opciones_media = ["imagen", "documento (pdf)", "audio / nota de voz"]
+        media_guardado = nodo['configuracion'].get('tipo_media', 'imagen')
+        idx_defecto = opciones_media.index(media_guardado) if media_guardado in opciones_media else 0
+        
+        tipo_m = st.selectbox("Tipo de archivo:", ["Imagen", "Documento (PDF)", "Audio / Nota de Voz"], index=idx_defecto)
         url_media = st.text_input("🔗 URL del archivo multimedia:", value=nodo['configuracion'].get('url', ''))
+        
+        delay_guardado = nodo['configuracion'].get('delay', 2)
+        tiempo_espera = st.slider("⏳ Tiempo de espera antes de enviar (segundos):", min_value=0, max_value=30, value=int(delay_guardado), step=1)
+        
+        config_actualizada['tipo_media'] = tipo_m.lower()
         config_actualizada['url'] = url_media
+        config_actualizada['delay'] = tiempo_espera
 
     st.markdown("---")
     col_b1, col_b2 = st.columns([3, 1])
@@ -120,6 +144,7 @@ def modal_editar_nodo(nodo):
                 except Exception as e:
                     st.error(f"Error al eliminar: {e}")
 
+
 @st.dialog("Editar Cuenta de Pago", width="medium")
 def abrir_editor_pago(cuenta):
     st.markdown(f"### ✏️ Editando Receptor ID: `{cuenta.get('id')}`")
@@ -133,6 +158,7 @@ def abrir_editor_pago(cuenta):
             st.rerun()
         except Exception as e: 
             st.error(f"Error al actualizar: {e}")
+
 
 # --- ESTRUCTURA PRINCIPAL ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
@@ -182,7 +208,7 @@ with col_centro:
                     if st.button("🔀 Menú / Condición", icon="⚡", width="stretch"):
                         modal_crear_nodo(fl_seleccionado['id'], "condicion")
                         
-                    if st.button("🖼️ Media (Imagen)", icon="📁", width="stretch"):
+                    if st.button("🖼️ Media (Multimedia)", icon="📁", width="stretch"):
                         modal_crear_nodo(fl_seleccionado['id'], "media")
 
                 with col_canvas:
@@ -193,21 +219,24 @@ with col_centro:
                     flow_edges = []
                     
                     for n in nodos:
-                        # Paleta premium moderna e interactiva
                         if n['tipo_nodo'] == "inicio":
-                            bg_color = "linear-gradient(135deg, #11998e, #38ef7d)" # Verde Esmeralda gradiente
+                            bg_color = "linear-gradient(135deg, #11998e, #38ef7d)"
                             border_color = "#51f198"
                             label_icon = "🟢 "
                         elif n['tipo_nodo'] == "condicion":
-                            bg_color = "linear-gradient(135deg, #8a2be2, #4a00e0)" # Violeta Eléctrico gradiente
+                            bg_color = "linear-gradient(135deg, #8a2be2, #4a00e0)"
                             border_color = "#b07cff"
                             label_icon = "⚡ "
                         elif n['tipo_nodo'] == "media":
-                            bg_color = "linear-gradient(135deg, #ff9966, #ff5e62)" # Coral Intenso gradiente
+                            bg_color = "linear-gradient(135deg, #ff9966, #ff5e62)"
                             border_color = "#ff9e9e"
-                            label_icon = "🖼️ "
-                        else: # texto estándar
-                            bg_color = "linear-gradient(135deg, #2193b0, #6dd5ed)" # Azul Neon suave gradiente
+                            # Icono dinámico según el tipo multimedia guardado
+                            t_med = n['configuracion'].get('tipo_media', 'imagen')
+                            if "pdf" in t_med: label_icon = "📄 "
+                            elif "audio" in t_med: label_icon = "🎵 "
+                            else: label_icon = "🖼️ "
+                        else:
+                            bg_color = "linear-gradient(135deg, #2193b0, #6dd5ed)"
                             border_color = "#99ecff"
                             label_icon = "💬 "
                             
@@ -224,7 +253,7 @@ with col_centro:
                                 "fontWeight": "600",
                                 "textAlign": "center",
                                 "fontFamily": "Segoe UI, sans-serif",
-                                "boxShadow": "0 4px 15px rgba(0,0,0,0.35)", # Sombra elegante para dar profundidad
+                                "boxShadow": "0 4px 15px rgba(0,0,0,0.35)",
                                 "minWidth": "160px"
                             }
                         })
@@ -236,7 +265,7 @@ with col_centro:
                             "target": str(con['nodo_destino_id']),
                             "animated": True,
                             "style": {"stroke": "#00f2fe", "strokeWidth": 3, "opacity": 0.85},
-                            "type": "smoothstep" # Línea curveada moderna en las esquinas
+                            "type": "smoothstep"
                         })
                     
                     with st.container(border=True):
@@ -244,7 +273,6 @@ with col_centro:
                         elementos_canvas = flow_nodes + flow_edges
                         
                         try:
-                            # Contenedor del lienzo con una cuadrícula sutil oscura de fondo estilo Cyberpunk
                             flow_action = react_flow(
                                 name=id_canvas, 
                                 elements=elementos_canvas, 
