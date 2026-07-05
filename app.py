@@ -97,7 +97,8 @@ with col_centro:
                 nombre_flujo = st.text_input("Nombre identificativo de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
                 keyword_flujo = st.text_input("Palabra clave disparadora (Trigger)", placeholder="Ej: hola")
                 
-                if st.form_submit_button("Inicializar Flujo en Red", type="primary"):
+                # CORREGIDO: cambiado a width='stretch'
+                if st.form_submit_button("Inicializar Flujo en Red", width='stretch', type="primary"):
                     if nombre_flujo and keyword_flujo:
                         if crear_nuevo_flujo(nombre_flujo, keyword_flujo):
                             st.toast("¡Flujo inicializado con éxito! Nodo base 'Inicio' configurado.", icon="✅")
@@ -132,7 +133,7 @@ with col_centro:
                         with col_c:
                             st.caption("🔌 Conexiones (Cables instalados)")
                             if not conexiones:
-                                st.info("Este flujo no tiene cables interconectando bloques todavía.")
+                                i_info = st.info("Este flujo no tiene cables interconectando bloques todavía.")
                             for con in conexiones:
                                 st.code(f"De: {con['nodo_origen_id'][:8]}... ➡️ A: {con['nodo_destino_id'][:8]}...", language="text")
 
@@ -147,6 +148,7 @@ with col_centro:
                     tel = st.text_input("Teléfono Receptor")
                 _, c_btn = st.columns([2, 1])
                 with c_btn:
+                    # CORREGIDO: cambiado a width='stretch'
                     if st.form_submit_button("Registrar Pago Móvil", width='stretch'):
                         if ced and tel:
                             guardar_contacto(ced, tel)
@@ -201,6 +203,7 @@ with col_centro:
                     nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
                 _, c_btn_em = st.columns([2, 1])
                 with c_btn_em: 
+                    # CORREGIDO: cambiado a width='stretch'
                     guardar_montos = st.form_submit_button("💾 Guardar Montos", width='stretch')
                 if guardar_montos:
                     for em, monto_nuevo in nuevos_valores.items(): 
