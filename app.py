@@ -5,8 +5,10 @@ import io
 
 # Importaciones locales personalizadas
 from auth_utils import verificar_login, get_supabase
-from db_utils import obtener_configuraciones, guardar_configuracion, subir_archivo_al_storage, listar_archivos_storage, eliminar_regla
 from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_contacto
+
+# Módulos del Motor de Flujos (Sustituyen la lógica de clientes y respuestas antiguas)
+from db_flow import obtener_todos_los_flujos, crear_nuevo_flujo, obtener_datos_lienzo
 
 # Nuevos módulos divididos
 from log_utils import obtener_metricas_del_dia, obtener_todos_los_logs
@@ -37,40 +39,7 @@ if not st.session_state["logueado"]:
                         st.error(msg)
     st.stop()
 
-# --- DIÁLOGOS GLOBALES DE EDICIÓN ---
-@st.dialog("Editar Regla de Bot", width="large")
-def abrir_editor(conf):
-    resp_data = conf.get('respuestas') or {}
-    contenido_actual = resp_data.get('contenido', '')
-    st.markdown(f"### ✏️ Editando: `{conf.get('palabra_clave')}`")
-    nueva_palabra = st.text_input("Palabra clave para el bot", value=conf.get('palabra_clave', ''))
-    st.markdown("---")
-    st.write("#### 📂 Archivo actual")
-    st.markdown(f"[{contenido_actual}]({contenido_actual})")
-    st.markdown("---")
-    col_select, col_upload = st.columns(2)
-    with col_select:
-        archivos = listar_archivos_storage()
-        seleccion = st.selectbox("Cambiar por:", ["-- Mantener actual --"] + archivos)
-    with col_upload:
-        nuevo_archivo = st.file_uploader("Subir archivo NUEVO", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
-    
-    col_save, col_del = st.columns([3, 1])
-    with col_save:
-        if st.button("💾 Guardar Cambios", use_container_width=True, type="primary"):
-            try:
-                final_content = subir_archivo_al_storage(nuevo_archivo.getvalue(), nuevo_archivo.name) if nuevo_archivo else (supabase.storage.from_("recetarios-helado").get_public_url(seleccion) if seleccion != "-- Mantener actual --" else contenido_actual)
-                supabase.table("clientes").update({"palabra_clave": nueva_palabra}).eq("id", conf['id']).execute()
-                supabase.table("respuestas").update({"contenido": final_content}).eq("id", resp_data['id']).execute()
-                st.toast("Guardado", icon="✅")
-                st.rerun()
-            except Exception as e: 
-                st.error(f"Error: {e}")
-    with col_del:
-        if st.button("🗑️ Borrar", use_container_width=True):
-            if eliminar_regla(conf['id'], resp_data['id']): 
-                st.rerun()
-
+# --- DIÁLOGOS GLOBALES ---
 @st.dialog("Editar Cuenta de Pago", width="medium")
 def abrir_editor_pago(cuenta):
     st.markdown(f"### ✏️ Editando Receptor ID: `{cuenta.get('id')}`")
@@ -84,8 +53,6 @@ def abrir_editor_pago(cuenta):
             st.rerun()
         except Exception as e: 
             st.error(f"Error al actualizar: {e}")
-         
-
 
 # --- ESTRUCTURA PRINCIPAL DE LA PANTALLA ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
@@ -119,29 +86,58 @@ with col_centro:
             st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"], delta=f"{metricas['alertas']} pendientes" if int(metricas["alertas"]) > 0 else None, delta_color=color_alerta)
             
     st.markdown("<br>", unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["⚙️ Reglas del Bot", "💳 Gestión de Pagos", "📋 Historial de Logs"])
+    tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-    # --- TAB 1: REGLAS ---
+    # --- TAB 1: CONSTRUCTOR DE FLUJOS (Reemplaza Clientes y Respuestas antiguas) ---
     with tab1:
-        with st.expander("➕ Nueva Regla"):
-            with st.form("nueva_regla_form", border=False):
-                palabras = st.text_input("Palabra clave")
-                archivo = st.file_uploader("Subir archivo", type=["pdf", "png", "jpg", "jpeg", "webp", "mp4", "mp3", "wav", "m4a", "ogg", "opus", "OPUS", "OGG"])
-                res_texto = st.text_area("Respuesta texto")
-                if st.form_submit_button("Guardar Regla", type="primary"):
-                    cont = subir_archivo_al_storage(archivo.getvalue(), file_name=archivo.name) if archivo else res_texto
-                    if cont: 
-                        guardar_configuracion(palabras, cont)
-                        st.toast("¡Regla guardada exitosamente!", icon="✅")
-                        st.rerun()
+        st.write("### 🔀 Flujos Automatizados de Conversación")
         
-        st.write("#### 🔑 Reglas del sistema")
-        for conf in obtener_configuraciones():
-            with st.container(border=True):
-                c1, c2 = st.columns([5, 1])
-                c1.write(f"🔑 **{conf.get('palabra_clave')}**")
-                if c2.button("✏️ Editar", key=f"edit_{conf['id']}", use_container_width=True): 
-                    abrir_editor(conf)
+        # Formulario para registrar un flujo nuevo
+        with st.expander("➕ Crear Nuevo Flujo Visual"):
+            with st.form("nuevo_flujo_form", border=False):
+                nombre_flujo = st.text_input("Nombre identificativo de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
+                keyword_flujo = st.text_input("Palabra clave disparadora (Trigger)", placeholder="Ej: hola")
+                
+                if st.form_submit_button("Inicializar Flujo en Red", type="primary"):
+                    if nombre_flujo and keyword_flujo:
+                        if crear_nuevo_flujo(nombre_flujo, keyword_flujo):
+                            st.toast("¡Flujo inicializado con éxito! Nodo base 'Inicio' configurado.", icon="✅")
+                            st.rerun()
+                        else:
+                            st.error("Error al inicializar. Revisa si esa palabra clave ya está ocupada por otro flujo.")
+                    else:
+                        st.warning("Por favor completa el nombre del flujo y su palabra clave.")
+
+        # Listado de flujos existentes mapeados
+        st.write("#### 🔑 Lienzos y Disparadores Activos")
+        flujos_actuales = obtener_todos_los_flujos()
+        
+        if not flujos_actuales:
+            st.info("No posees ningún flujo en red configurado. Utiliza el formulario superior para crear el primero.")
+        else:
+            for fl in flujos_actuales:
+                with st.container(border=True):
+                    c1, c2 = st.columns([4, 1])
+                    c1.write(f"🗺️ **{fl.get('nombre')}** — Disparador: `{fl.get('palabra_clave')}`")
+                    
+                    # Al hacer clic en un flujo, listamos el mapa lúdico de datos que posee
+                    if c2.button("👁️ Inspeccionar Red", key=f"flow_{fl['id']}", use_container_width=True):
+                        nodos, conexiones = obtener_datos_lienzo(fl['id'])
+                        
+                        st.markdown("---")
+                        st.write(f"**Estructura interna de: `{fl.get('nombre')}`**")
+                        
+                        col_n, col_c = st.columns(2)
+                        with col_n:
+                            st.caption("📦 Bloques (Nodos asignados)")
+                            for n in nodos:
+                                st.code(f"ID: {n['id'][:8]}...\nTipo: {n['tipo_nodo'].upper()}\nConfig: {n['configuracion']}", language="json")
+                        with col_c:
+                            st.caption("🔌 Conexiones (Cables instalados)")
+                            if not conexiones:
+                                st.info("Este flujo no tiene cables interconectando bloques todavía.")
+                            for con in conexiones:
+                                st.code(f"De: {con['nodo_origen_id'][:8]}... ➡️ A: {con['nodo_destino_id'][:8]}...", language="text")
 
     # --- TAB 2: PAGOS ---
     with tab2:
@@ -217,29 +213,26 @@ with col_centro:
         except Exception as e: 
             st.error(f"Error al conectar con la configuración de emojis: {e}")
             
+    # --- TAB 3: LOGS ---
     with tab3:
         st.subheader("📋 Historial de Transacciones")
         lista_logs = obtener_todos_los_logs(supabase)
         
         if lista_logs and len(lista_logs) > 0:
             df = pd.DataFrame(lista_logs)
-            # Asegurar que la fecha sea datetime
             df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
             
-            # Filtros
             col_f1, col_f2, col_f3 = st.columns(3)
             f_inicio = col_f1.date_input("Inicio", value=datetime.now() - timedelta(days=30))
             f_fin = col_f2.date_input("Fin", value=datetime.now())
             busqueda_tel = col_f3.text_input("Buscar por Teléfono")
             
-            # Aplicar filtro combinando fechas y teléfono
             mask = (df["created_at"].dt.date >= f_inicio) & (df["created_at"].dt.date <= f_fin)
             if busqueda_tel:
                 mask = mask & df['phone'].astype(str).str.contains(busqueda_tel, na=False)
             
             df_filtrado = df.loc[mask]
             
-            # Mostrar botón de descarga solo si hay datos filtrados
             if not df_filtrado.empty:
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
