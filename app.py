@@ -165,12 +165,14 @@ with col_centro:
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
                         
-                        # Lista única unificada de elementos requerida por streamlit_react_flow
+                        # Arreglo de elementos unificados requerido por la extensión
                         elementos_canvas = flow_nodes + flow_edges
                         
-                        # Invocación limpia y explícita basada en la firma de la librería original
+                        # Forzamos las dimensiones exactas del lienzo visual mediante flow_styles
+                        estilos_lienzo = {"height": "450px", "width": "100%"}
+                        
                         try:
-                            react_flow(name=id_canvas, elements=elementos_canvas)
+                            react_flow(name=id_canvas, elements=elementos_canvas, flow_styles=estilos_lienzo)
                         except Exception as e:
                             st.error(f"Error al renderizar el lienzo visual: {e}")
 
