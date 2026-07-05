@@ -11,7 +11,7 @@ from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_c
 from db_flow import obtener_todos_los_flujos, crear_nuevo_flujo, obtener_datos_lienzo
 
 # Nuevos módulos divididos
-from log_utils import obtener_metrics_del_dia, obtener_todos_los_logs
+from log_utils import obtener_metricas_del_dia, obtener_todos_los_logs
 from pdf_utils import exportar_logs_a_pdf
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
@@ -73,7 +73,8 @@ with col_centro:
         if st.button("🔄 Actualizar Métricas", width='stretch', type="secondary"):
             st.rerun()
             
-    metricas = obtener_metrics_del_dia(supabase)
+    # CORREGIDO: cambiado de obtener_metrics_del_dia a obtener_metricas_del_dia
+    metricas = obtener_metricas_del_dia(supabase)
     
     with st.container(border=True):
         m1, m2, m3 = st.columns(3)
@@ -97,7 +98,7 @@ with col_centro:
                 nombre_flujo = st.text_input("Nombre de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
                 keyword_flujo = st.text_input("Palabra clave disparadora (Trigger)", placeholder="Ej: hola")
                 
-                if st.form_submit_button("Initializar Flujo en Red", width='stretch', type="primary"):
+                if st.form_submit_button("Inicializar Flujo en Red", width='stretch', type="primary"):
                     if nombre_flujo and keyword_flujo:
                         if crear_nuevo_flujo(nombre_flujo, keyword_flujo):
                             st.toast("¡Flujo inicializado con éxito! Lienzo gráfico listo.", icon="✅")
