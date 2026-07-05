@@ -88,7 +88,7 @@ with col_centro:
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-  # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
+# --- TAB 1: CONSTRUCTOR DE FLUJOS ---
     with tab1:
         st.write("### 🔀 Constructor Visual de Flujos (Flow Builder)")
         
@@ -113,7 +113,6 @@ with col_centro:
         if not flujos_actuales:
             st.info("No posees ningún flujo en red configurado. Utiliza el formulario superior para crear el primero.")
         else:
-            # Creamos un selector de flujo para cargar su lienzo correspondiente
             opciones_flujo = {f"🗺️ {fl['nombre']} (Trigger: {fl['palabra_clave']})": fl for fl in flujos_actuales}
             seleccion = st.selectbox("Elige el flujo que deseas editar visualmente:", list(opciones_flujo.keys()))
             
@@ -124,54 +123,49 @@ with col_centro:
                 st.markdown("---")
                 st.write(f"### 🎨 Lienzo de Trabajo: `{fl_seleccionado['nombre']}`")
                 
-                # --- PREPARACIÓN DE DATOS PARA STREAMLIT-REACT-FLOW ---
-                # Importamos de forma segura el componente interactivo
                 from streamlit_react_flow import react_flow
                 
                 flow_nodes = []
                 flow_edges = []
                 
-                # Mapeamos los nodos provenientes de Supabase al formato que entiende el canvas react-flow
+                # REVISIÓN Y FORMATEO ESTRICTO DE NODOS
                 for n in nodos:
                     flow_nodes.append({
-                        "id": str(n['id']),
-                        "data": {"label": f"📦 {n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
-                        # Si no tiene coordenadas guardadas, asignamos una posición por defecto en el plano
-                        "position": {"x": n.get('posicion_x', 100.0), "y": n.get('posicion_y', 200.0)},
+                        "id": str(n['id']),  # Forzamos conversión a string de UUID
+                        "data": {"label": f"{n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
+                        "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
                         "style": {
                             "background": "#1e1e24" if n['tipo_nodo'] == "inicio" else "#2e3f7f",
                             "color": "white",
                             "border": "1px solid #7928ca",
                             "borderRadius": "8px",
-                            "padding": "10px",
-                            "fontWeight": "bold"
+                            "padding": "10px"
                         }
                     })
                 
-                # Mapeamos las conexiones de la base de datos a cables gráficos
+                # REVISIÓN Y FORMATEO ESTRICTO DE CONEXIONES
                 for index, con in enumerate(conexiones):
                     flow_edges.append({
                         "id": f"edge_{index}",
-                        "source": str(con['nodo_origen_id']),
-                        "target": str(con['nodo_destino_id']),
+                        "source": str(con['nodo_origen_id']), # Forzamos conversión a string de UUID
+                        "target": str(con['nodo_destino_id']), # Forzamos conversión a string de UUID
                         "animated": True,
                         "style": {"stroke": "#00f2fe"}
                     })
                 
-                # --- CONTROL DE ACCIONES DEL LIENZO ---
+                # ACCIONES DEL LIENZO
                 col_c1, col_c2 = st.columns([3, 1])
                 with col_c2:
-                    st.markdown("##### ⚙️ Acciones del Bloque")
+                    st.markdown("##### ⚙️ Acciones")
                     tipo_nuevo_nodo = st.selectbox("Añadir bloque al lienzo:", ["Respuesta de Texto", "Condición (Filtro)", "Imagen/Media"])
                     if st.button("➕ Soltar en Lienzo", width='stretch'):
                         st.toast("Bloque añadido. ¡Arrástralo y conéctalo!", icon="🚀")
                 
                 with col_c1:
-                    # Renderizado del Canvas gráfico interactivo real
-                    st.caption("💡 Puedes arrastrar los bloques con el ratón y moverte por el plano de la red.")
                     with st.container(border=True):
-                        react_flow(id=f"flow_builder_{fl_seleccionado['id']}", nodes=flow_nodes, edges=flow_edges, height=450)
-
+                        # Pasamos los arreglos asegurando que ID del componente sea un string limpio
+                        id_canvas = f"flow_{str(fl_seleccionado['id'])}"
+                        react_flow(id=id_canvas, nodes=flow_nodes, edges=flow_edges, height=450)
     # --- TAB 2: PAGOS ---
     with tab2:
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
