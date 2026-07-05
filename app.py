@@ -11,7 +11,7 @@ from pagos_utils import obtener_configuracion_pagos, guardar_contacto, activar_c
 from db_flow import obtener_todos_los_flujos, crear_nuevo_flujo, obtener_datos_lienzo
 
 # Nuevos módulos divididos
-from log_utils import obtener_metricas_del_dia, obtener_todos_los_logs
+from log_utils import obtener_metrics_del_dia, obtener_todos_los_logs
 from pdf_utils import exportar_logs_a_pdf
 
 st.set_page_config(page_title="Admin Bot", layout="wide")
@@ -73,7 +73,7 @@ with col_centro:
         if st.button("🔄 Actualizar Métricas", width='stretch', type="secondary"):
             st.rerun()
             
-    metricas = obtener_metricas_del_dia(supabase)
+    metricas = obtener_metrics_del_dia(supabase)
     
     with st.container(border=True):
         m1, m2, m3 = st.columns(3)
@@ -88,7 +88,7 @@ with col_centro:
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-# --- TAB 1: CONSTRUCTOR DE FLUJOS ---
+    # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
     with tab1:
         st.write("### 🔀 Constructor Visual de Flujos (Flow Builder)")
         
@@ -97,7 +97,7 @@ with col_centro:
                 nombre_flujo = st.text_input("Nombre de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
                 keyword_flujo = st.text_input("Palabra clave disparadora (Trigger)", placeholder="Ej: hola")
                 
-                if st.form_submit_button("Inicializar Flujo en Red", width='stretch', type="primary"):
+                if st.form_submit_button("Initializar Flujo en Red", width='stretch', type="primary"):
                     if nombre_flujo and keyword_flujo:
                         if crear_nuevo_flujo(nombre_flujo, keyword_flujo):
                             st.toast("¡Flujo inicializado con éxito! Lienzo gráfico listo.", icon="✅")
@@ -131,7 +131,7 @@ with col_centro:
                 # REVISIÓN Y FORMATEO ESTRICTO DE NODOS
                 for n in nodos:
                     flow_nodes.append({
-                        "id": str(n['id']),  # Forzamos conversión a string de UUID
+                        "id": str(n['id']),
                         "data": {"label": f"{n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
                         "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
                         "style": {
@@ -147,8 +147,8 @@ with col_centro:
                 for index, con in enumerate(conexiones):
                     flow_edges.append({
                         "id": f"edge_{index}",
-                        "source": str(con['nodo_origen_id']), # Forzamos conversión a string de UUID
-                        "target": str(con['nodo_destino_id']), # Forzamos conversión a string de UUID
+                        "source": str(con['nodo_origen_id']),
+                        "target": str(con['nodo_destino_id']),
                         "animated": True,
                         "style": {"stroke": "#00f2fe"}
                     })
@@ -163,9 +163,14 @@ with col_centro:
                 
                 with col_c1:
                     with st.container(border=True):
-                        # Pasamos los arreglos asegurando que ID del componente sea un string limpio
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
-                        react_flow(id=id_canvas, nodes=flow_nodes, edges=flow_edges, height=450)
+                        
+                        try:
+                            elementos_canvas = flow_nodes + flow_edges
+                            react_flow(id_canvas, elements=elementos_canvas, height=450)
+                        except TypeError:
+                            react_flow(id_canvas, flow_nodes, flow_edges, height=450)
+
     # --- TAB 2: PAGOS ---
     with tab2:
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
@@ -177,7 +182,6 @@ with col_centro:
                     tel = st.text_input("Teléfono Receptor")
                 _, c_btn = st.columns([2, 1])
                 with c_btn:
-                    # CORREGIDO: cambiado a width='stretch'
                     if st.form_submit_button("Registrar Pago Móvil", width='stretch'):
                         if ced and tel:
                             guardar_contacto(ced, tel)
@@ -232,7 +236,6 @@ with col_centro:
                     nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
                 _, c_btn_em = st.columns([2, 1])
                 with c_btn_em: 
-                    # CORREGIDO: cambiado a width='stretch'
                     guardar_montos = st.form_submit_button("💾 Guardar Montos", width='stretch')
                 if guardar_montos:
                     for em, monto_nuevo in nuevos_valores.items(): 
