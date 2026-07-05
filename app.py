@@ -165,23 +165,14 @@ with col_centro:
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
                         
-                        # BLOQUE MODIFICADO: Sistema de 4 contingencias robustas de firmas para react_flow
+                        # Lista única unificada de elementos requerida por streamlit_react_flow
+                        elementos_canvas = flow_nodes + flow_edges
+                        
+                        # Invocación limpia y explícita basada en la firma de la librería original
                         try:
-                            # Opción A: Versiones modernas con parámetros nombrados discretos
-                            react_flow(id=id_canvas, nodes=flow_nodes, edges=flow_edges, height=450)
-                        except TypeError:
-                            try:
-                                # Opción B: Versiones que empaquetan en un arreglo nombrado de elementos
-                                elementos_canvas = flow_nodes + flow_edges
-                                react_flow(id=id_canvas, elements=elementos_canvas, height=450)
-                            except TypeError:
-                                try:
-                                    # Opción C: Posicional puro con nodos y bordes separados (Muy común en forks estables)
-                                    react_flow(id_canvas, flow_nodes, flow_edges, 450)
-                                except TypeError:
-                                    # Opción D: Posicional puro con elementos unidos y altura posicional entera
-                                    elementos_canvas = flow_nodes + flow_edges
-                                    react_flow(id_canvas, elementos_canvas, 450)
+                            react_flow(name=id_canvas, elements=elementos_canvas)
+                        except Exception as e:
+                            st.error(f"Error al renderizar el lienzo visual: {e}")
 
     # --- TAB 2: PAGOS ---
     with tab2:
