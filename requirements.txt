@@ -6,3 +6,4 @@ supabase
 reportlab
 openpyxl
 plotly
+streamlit-react-flow
