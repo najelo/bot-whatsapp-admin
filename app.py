@@ -39,7 +39,84 @@ if not st.session_state["logueado"]:
                         st.error(msg)
     st.stop()
 
-# --- DIÁLOGOS GLOBALES ---
+# --- MODALES FLOTANTES DE EDICIÓN Y CREACIÓN (ESTILO DIALOG) ---
+
+@st.dialog("📝 Configurar Nuevo Bloque", width="medium")
+def modal_crear_nodo(flujo_id, tipo_nodo):
+    st.markdown(f"### 🧩 Nuevo Bloque: **{tipo_nodo.upper()}**")
+    titulo_inicial = st.text_input("Asigna un nombre para identificar este bloque:", placeholder="Ej: Mensaje de Bienvenida")
+    
+    if tipo_nodo == "texto":
+        mensaje_inicial = st.text_area("💬 Mensaje de WhatsApp que enviará el Bot:")
+    
+    st.markdown("---")
+    if st.button("➕ Soltar en el Lienzo", width='stretch', type="primary"):
+        if titulo_inicial:
+            config = {"titulo": titulo_inicial}
+            if tipo_nodo == "texto":
+                config["mensaje"] = mensaje_inicial
+            elif tipo_nodo == "condicion":
+                config["regla"] = "Validar Pago Móvil"
+            elif tipo_nodo == "media":
+                config["url"] = ""
+
+            nuevo_nodo = {
+                "flujo_id": flujo_id,
+                "tipo_nodo": tipo_nodo,
+                "configuracion": config,
+                "posicion_x": 350.0,
+                "posicion_y": 220.0
+            }
+            try:
+                supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
+                st.toast("¡Bloque añadido con éxito!", icon="🚀")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al guardar: {e}")
+        else:
+            st.warning("Debes asignarle un nombre al bloque.")
+
+@st.dialog("⚙️ Editar Propiedades del Bloque", width="medium")
+def modal_editar_nodo(nodo):
+    st.markdown(f"### ✏️ Configurando: **{nodo['configuracion'].get('titulo', 'Bloque')}**")
+    nuevo_titulo = st.text_input("Nombre del bloque (Label):", value=nodo['configuracion'].get('titulo', ''))
+    
+    config_actualizada = nodo['configuracion']
+    
+    if nodo['tipo_nodo'] == "texto":
+        nuevo_mensaje = st.text_area("💬 Mensaje de respuesta (WhatsApp):", value=nodo['configuracion'].get('mensaje', ''))
+        config_actualizada['mensaje'] = nuevo_mensaje
+    elif nodo['tipo_nodo'] == "condicion":
+        opciones_filtros = ["Validar Pago Móvil", "Comprobar Referencia Única", "Validar Monto Exacto"]
+        filtro_actual = nodo['configuracion'].get('regla', 'Validar Pago Móvil')
+        regla_sel = st.selectbox("🛠️ Regla de automatización:", opciones_filtros, index=opciones_filtros.index(filtro_actual) if filtro_actual in opciones_filtros else 0)
+        config_actualizada['regla'] = regla_sel
+    elif nodo['tipo_nodo'] == "media":
+        url_media = st.text_input("🔗 URL del archivo multimedia:", value=nodo['configuracion'].get('url', ''))
+        config_actualizada['url'] = url_media
+
+    st.markdown("---")
+    col_b1, col_b2 = st.columns([3, 1])
+    with col_b1:
+        if st.button("💾 Guardar Cambios", type="primary", width="stretch"):
+            config_actualizada['titulo'] = nuevo_titulo
+            try:
+                supabase.table("nodos_flujo").update({"configuracion": config_actualizada}).eq("id", nodo['id']).execute()
+                st.toast("¡Bloque guardado!", icon="✅")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+    with col_b2:
+        if st.button("🗑️ Eliminar", type="secondary", width="stretch"):
+            if nodo['tipo_nodo'] == "inicio":
+                st.error("No puedes borrar el Inicio.")
+            else:
+                supabase.table("conexiones_flujo").delete().eq("nodo_origen_id", nodo['id']).execute()
+                supabase.table("conexiones_flujo").delete().eq("nodo_destino_id", nodo['id']).execute()
+                supabase.table("nodos_flujo").delete().eq("id", nodo['id']).execute()
+                st.toast("Bloque eliminado", icon="🗑️")
+                st.rerun()
+
 @st.dialog("Editar Cuenta de Pago", width="medium")
 def abrir_editor_pago(cuenta):
     st.markdown(f"### ✏️ Editando Receptor ID: `{cuenta.get('id')}`")
@@ -54,7 +131,7 @@ def abrir_editor_pago(cuenta):
         except Exception as e: 
             st.error(f"Error al actualizar: {e}")
 
-# --- ESTRUCTURA PRINCIPAL DE LA PANTALLA ---
+# --- ESTRUCTURA PRINCIPAL ---
 col_izq, col_centro, col_der = st.columns([1, 4, 1])
 
 with col_centro:
@@ -65,54 +142,23 @@ with col_centro:
         st.markdown("<br>", unsafe_allow_html=True)
         st.button("Cerrar sesión", on_click=lambda: st.session_state.update(logueado=False), type="secondary", width='stretch')
     
-    # 📊 DASHBOARD DE MÉTRICAS
-    col_titulo_met, col_btn_refresh = st.columns([3, 1])
-    with col_titulo_met:
-        st.write("#### 📊 Actividad de Hoy")
-    with col_btn_refresh:
-        if st.button("🔄 Actualizar Métricas", width='stretch', type="secondary"):
-            st.rerun()
-            
+    # 📊 DASHBOARD
     metricas = obtener_metricas_del_dia(supabase)
-    
     with st.container(border=True):
         m1, m2, m3 = st.columns(3)
-        with m1: 
-            st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
-        with m2: 
-            st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
-        with m3:
-            color_alerta = "inverse" if int(metricas["alertas"]) > 0 else "normal"
-            st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"], delta=f"{metricas['alertas']} pendientes" if int(metricas["alertas"]) > 0 else None, delta_color=color_alerta)
+        with m1: st.metric(label="💰 Verificado Hoy", value=metricas["monto"])
+        with m2: st.metric(label="🖼️ Capturas Leídas", value=metricas["procesados"])
+        with m3: st.metric(label="🚨 Alertas / Fallas", value=metricas["alertas"])
             
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-    # --- TAB 1: CONSTRUCTOR DE FLUJOS (ESTILO SENDYPRO) ---
+    # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
     with tab1:
         st.write("### 🔀 Constructor Visual de Flujos (Flow Builder)")
-        
-        with st.expander("➕ Crear Nuevo Flujo Visual"):
-            with st.form("nuevo_flujo_form", border=False):
-                nombre_flujo = st.text_input("Nombre de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
-                keyword_flujo = st.text_input("Palabra clave disparadora (Trigger)", placeholder="Ej: hola")
-                
-                if st.form_submit_button("Inicializar Flujo en Red", width='stretch', type="primary"):
-                    if nombre_flujo and keyword_flujo:
-                        if crear_nuevo_flujo(nombre_flujo, keyword_flujo):
-                            st.toast("¡Flujo inicializado con éxito! Lienzo gráfico listo.", icon="✅")
-                            st.rerun()
-                        else:
-                            st.error("Error al inicializar. Revisa si esa palabra clave ya está ocupada por otro flujo.")
-                    else:
-                        st.warning("Por favor completa el nombre del flujo y su palabra clave.")
-
-        st.write("#### 🔑 Selecciona un Lienzo Activo")
         flujos_actuales = obtener_todos_los_flujos()
         
-        if not flujos_actuales:
-            st.info("No posees ningún flujo en red configurado. Utiliza el formulario superior para crear el primero.")
-        else:
+        if flujos_actuales:
             opciones_flujo = {f"🗺️ {fl['nombre']} (Trigger: {fl['palabra_clave']})": fl for fl in flujos_actuales}
             seleccion = st.selectbox("Elige el flujo que deseas editar visualmente:", list(opciones_flujo.keys()))
             
@@ -121,45 +167,20 @@ with col_centro:
                 nodos, conexiones = obtener_datos_lienzo(fl_seleccionado['id'])
                 
                 st.markdown("---")
-                
-                # REPLICANDO EL DISEÑO DE COLUMNAS DE SENDYPRO
-                # Columna 1: Paleta de Componentes Rápidos | Columna 2: El Lienzo de Trabajo Grande
                 col_paleta, col_canvas = st.columns([1.2, 3.8])
                 
                 with col_paleta:
-                    st.markdown("### 🧩 Agregar Nodo")
-                    st.write("Selecciona una tarjeta para soltarla en tu red de automatización:")
+                    st.markdown("### 🧩 Componentes")
+                    st.write("Haz clic para configurar y soltar:")
                     
-                    # Simulación de botones de tarjetas visuales como los de la captura
-                    if st.button("🟢 INICIO (Trigger)", icon="🚀", width="stretch", help="Punto de entrada del bot"):
-                        st.info("El nodo inicial ya se genera automáticamente con la palabra clave.")
-                        
                     if st.button("📝 Contenido (Texto)", icon="💬", width="stretch"):
-                        nuevo_nodo = {
-                            "flujo_id": fl_seleccionado['id'], "tipo_nodo": "texto",
-                            "configuracion": {"titulo": "Nuevo Bloque de Mensaje", "mensaje": "Escribe aquí tu respuesta automática..."},
-                            "posicion_x": 350.0, "posicion_y": 220.0
-                        }
-                        supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
-                        st.rerun()
+                        modal_crear_nodo(fl_seleccionado['id'], "texto")
                         
                     if st.button("🔀 Menú / Condición", icon="⚡", width="stretch"):
-                        nuevo_nodo = {
-                            "flujo_id": fl_seleccionado['id'], "tipo_nodo": "condicion",
-                            "configuracion": {"titulo": "Filtro de Validación", "regla": "monto_correcto"},
-                            "posicion_x": 350.0, "posicion_y": 220.0
-                        }
-                        supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
-                        st.rerun()
+                        modal_crear_nodo(fl_seleccionado['id'], "condicion")
                         
                     if st.button("🖼️ Media (Imagen)", icon="📁", width="stretch"):
-                        nuevo_nodo = {
-                            "flujo_id": fl_seleccionado['id'], "tipo_nodo": "media",
-                            "configuracion": {"titulo": "Enviar Captura/Imagen", "url": ""},
-                            "posicion_x": 350.0, "posicion_y": 220.0
-                        }
-                        supabase.table("nodos_flujo").insert(nuevo_nodo).execute()
-                        st.rerun()
+                        modal_crear_nodo(fl_seleccionado['id'], "media")
 
                 with col_canvas:
                     st.write(f"### 🎨 Lienzo Activo: `{fl_seleccionado['nombre']}`")
@@ -168,32 +189,29 @@ with col_centro:
                     flow_nodes = []
                     flow_edges = []
                     
-                    # Formateo estricto de nodos con estilos de color dinámicos según el tipo de bloque
+                    # CORRECCIÓN: Eliminados códigos feos. Ahora solo muestra el nombre limpio asignado.
                     for n in nodos:
-                        color_bloque = "#2e3f7f"  # Azul por defecto
-                        if n['tipo_nodo'] == "inicio":
-                            color_bloque = "#1b4332"  # Verde para el trigger de entrada
-                        elif n['tipo_nodo'] == "condicion":
-                            color_bloque = "#7400b8"  # Morado para filtros/menús
-                        elif n['tipo_nodo'] == "media":
-                            color_bloque = "#ee6c4d"  # Naranja para imágenes
+                        color_bloque = "#2e3f7f"
+                        if n['tipo_nodo'] == "inicio": color_bloque = "#1b4332"
+                        elif n['tipo_nodo'] == "condicion": color_bloque = "#7400b8"
+                        elif n['tipo_nodo'] == "media": color_bloque = "#ee6c4d"
                             
                         flow_nodes.append({
                             "id": str(n['id']),
-                            "data": {"label": f"🆔 {n['id']} - {n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
+                            # Se muestra únicamente el título estético asignado por el usuario
+                            "data": {"label": f"{n['configuracion'].get('titulo', 'Sin Nombre')}"},
                             "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
                             "style": {
                                 "background": color_bloque,
                                 "color": "white",
                                 "border": "2px solid #ffffff",
                                 "borderRadius": "10px",
-                                "padding": "12px",
+                                "padding": "15px",
                                 "fontWeight": "bold",
-                                "fontSize": "12px"
+                                "textAlign": "center"
                             }
                         })
                     
-                    # Formateo de las conexiones estables
                     for index, con in enumerate(conexiones):
                         flow_edges.append({
                             "id": f"edge_{index}",
@@ -206,192 +224,64 @@ with col_centro:
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
                         elementos_canvas = flow_nodes + flow_edges
-                        estilos_lienzo = {"height": "500px", "width": "100%", "background": "#121214"}
                         
                         try:
-                            # Renderizado e intercepción de interacciones en tiempo real
-                            flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles=estilos_lienzo)
+                            flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles={"height": "500px", "width": "100%", "background": "#121214"})
                             
-                            # INTERACTIVIDAD DE CABLES: Si el usuario arrastra y conecta dos burbujas en pantalla
                             if flow_action and "action" in flow_action:
-                                if flow_action["action"] == "connect":
+                                # INTERACTIVIDAD AL HACER CLICK: Detecta si se seleccionó una caja para abrir el modal flotante
+                                if flow_action["action"] == "click":
+                                    id_clickeado = int(flow_action["node"]["id"])
+                                    nodo_encontrado = next((x for x in nodos if x['id'] == id_clickeado), None)
+                                    if nodo_encontrado:
+                                        modal_editar_nodo(nodo_encontrado)
+                                
+                                # Si se conectan con cables
+                                elif flow_action["action"] == "connect":
                                     origen = flow_action["edge"]["source"]
                                     destino = flow_action["edge"]["target"]
-                                    
-                                    nueva_con = {
+                                    supabase.table("conexiones_flujo").insert({
                                         "flujo_id": fl_seleccionado['id'],
                                         "nodo_origen_id": int(origen),
                                         "nodo_destino_id": int(destino)
-                                    }
-                                    supabase.table("conexiones_flujo").insert(nueva_con).execute()
-                                    st.toast("🔗 ¡Nodos enlazados con éxito!", icon="⚡")
+                                    }).execute()
                                     st.rerun()
                         except Exception as e:
                             st.error(f"Error en el lienzo: {e}")
-
-                # --- CONFIGURADOR DE PARÁMETROS DINÁMICOS ---
-                st.markdown("---")
-                st.write("### ⚙️ Propiedades y Edición de Nodos")
-                
-                # Desplegable inteligente para seleccionar qué caja del mapa queremos alterar estructuralmente
-                opciones_nodos = {f"🔑 ID: {n['id']} | [{n['tipo_nodo'].upper()}] - {n['configuracion'].get('titulo', 'Sin Nombre')}": n for n in nodos}
-                
-                if opciones_nodos:
-                    nodo_a_editar_sel = st.selectbox("🎯 Elige el bloque del lienzo que deseas configurar internamente:", list(opciones_nodos.keys()))
-                    nodo_actual = opciones_nodos[nodo_a_editar_sel]
-                    
-                    with st.form("form_edicion_nodo", border=True):
-                        st.markdown(f"#### ⚙️ Editando Propiedades del Nodo `#{nodo_actual['id']}`")
-                        nuevo_titulo = st.text_input("Nombre de la caja (Label):", value=nodo_actual['configuracion'].get('titulo', ''))
-                        
-                        # Renderizado condicional según el tipo de caja que seleccionó el usuario
-                        if nodo_actual['tipo_nodo'] == "texto":
-                            texto_mensaje = st.text_area("💬 Mensaje de respuesta (WhatsApp):", value=nodo_actual['configuracion'].get('mensaje', ''))
-                        elif nodo_actual['tipo_nodo'] == "condicion":
-                            opciones_filtros = ["Validar Pago Móvil", "Comprobar Referencia Única", "Validar Monto Exacto"]
-                            filtro_actual = nodo_actual['configuracion'].get('regla', 'Validar Pago Móvil')
-                            regla_sel = st.selectbox("🛠️ Regla de automatización del Bot:", opciones_filtros, index=opciones_filtros.index(filtro_actual) if filtro_actual in opciones_filtros else 0)
-                        elif nodo_actual['tipo_nodo'] == "media":
-                            url_media = st.text_input("🔗 URL del archivo multimedia adjunto:", value=nodo_actual['configuracion'].get('url', ''))
-                            
-                        # Botones de ejecución en base de datos
-                        col_btn1, col_btn2 = st.columns([4, 1])
-                        with col_btn1:
-                            if st.form_submit_button("💾 Guardar Cambios en Servidor", type="primary", width="stretch"):
-                                config_actualizada = nodo_actual['configuracion']
-                                config_actualizada['titulo'] = nuevo_titulo
-                                
-                                if nodo_actual['tipo_nodo'] == "texto":
-                                    config_actualizada['mensaje'] = texto_mensaje
-                                elif nodo_actual['tipo_nodo'] == "condicion":
-                                    config_actualizada['regla'] = regla_sel
-                                elif nodo_actual['tipo_nodo'] == "media":
-                                    config_actualizada['url'] = url_media
-                                    
-                                supabase.table("nodos_flujo").update({"configuracion": config_actualizada}).eq("id", nodo_actual['id']).execute()
-                                st.toast("¡Bloque guardado exitosamente!", icon="✅")
-                                st.rerun()
-                        with col_btn2:
-                            # Añadimos la opción de eliminar nodos obsoletos del mapa interactivo
-                            if st.form_submit_button("🗑️ Eliminar Nodo", type="secondary", width="stretch"):
-                                if nodo_actual['tipo_nodo'] == "inicio":
-                                    st.error("No puedes eliminar el nodo de INICIO base.")
-                                else:
-                                    # Limpiamos primero sus cables asociados para evitar fallas de llaves foráneas
-                                    supabase.table("conexiones_flujo").delete().eq("nodo_origen_id", nodo_actual['id']).execute()
-                                    supabase.table("conexiones_flujo").delete().eq("nodo_destino_id", nodo_actual['id']).execute()
-                                    # Eliminamos el bloque definitivo
-                                    supabase.table("nodos_flujo").delete().eq("id", nodo_actual['id']).execute()
-                                    st.toast("Bloque removido de la red", icon="🗑️")
-                                    st.rerun()
-                else:
-                    st.info("Tu lienzo se encuentra vacío. Presiona cualquier botón de la paleta izquierda para soltar tu primer elemento.")
 
     # --- TAB 2: PAGOS ---
     with tab2:
         with st.expander("➕ Registrar Nuevo Pago Móvil (Receptor)"):
             with st.form("nuevo_pago_form", border=False, clear_on_submit=True):
                 c_ced, c_tel = st.columns(2)
-                with c_ced: 
-                    ced = st.text_input("Cédula Receptor")
-                with c_tel: 
-                    tel = st.text_input("Teléfono Receptor")
-                _, c_btn = st.columns([2, 1])
-                with c_btn:
-                    if st.form_submit_button("Registrar Pago Móvil", width='stretch'):
-                        if ced and tel:
-                            guardar_contacto(ced, tel)
-                            st.toast("¡Pago Móvil registrado!", icon="✅")
-                            st.rerun()
-                        else: 
-                            st.warning("Por favor, rellena ambos campos.") 
+                with c_ced: ced = st.text_input("Cédula Receptor")
+                with c_tel: tel = st.text_input("Teléfono Receptor")
+                if st.form_submit_button("Registrar Pago Móvil"):
+                    if ced and tel:
+                        guardar_contacto(ced, tel)
+                        st.toast("¡Pago Móvil registrado!", icon="✅")
+                        st.rerun()
 
-        st.write("#### 📋 Cuentas Registradas (Pago Móvil)")
+        st.write("#### 📋 Cuentas Registradas")
         for c in obtener_configuracion_pagos():
             with st.container(border=True):
-                inf1, inf2 = st.columns([3, 1])
-                inf1.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
-                with inf2:
-                    if c.get('activo'): 
-                        st.markdown("<span style='color:#2ec4b6; font-weight:bold;'>● Activo</span>", unsafe_allow_html=True)
-                    else: 
-                        st.markdown("<span style='color:#e71d36; font-weight:bold;'>● Inactivo</span>", unsafe_allow_html=True)
+                st.write(f"💳 **Cédula:** `{c.get('cedula_esperada')}` | **Tel:** `{c.get('telefono_esperado')}`")
                 col_act, col_edit, col_del = st.columns([2, 1, 1])
                 with col_act:
-                    if not c.get('activo'):
-                        if st.button("🚀 Activar", key=f"act_{c['id']}", width='stretch'): 
-                            activar_contacto(c['id'])
-                            st.rerun()
-                    else: 
-                        st.button("✨ Principal", key=f"act_dis_{c['id']}", disabled=True, width='stretch')
+                    if not c.get('activo') and st.button("🚀 Activar", key=f"act_{c['id']}"):
+                        activar_contacto(c['id'])
+                        st.rerun()
                 with col_edit:
-                    if st.button("✏️ Editar", key=f"edit_pago_{c['id']}", width='stretch'): 
-                        abrir_editor_pago(c)
+                    if st.button("✏️ Editar", key=f"edit_{c['id']}"): abrir_editor_pago(c)
                 with col_del:
-                    if st.button("🗑️ Eliminar", key=f"del_pago_{c['id']}", width='stretch', type="secondary"):
-                        try:
-                            supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
-                            st.toast("Cuenta eliminada", icon="🗑️")
-                            st.rerun()
-                        except Exception as e: 
-                            st.error(f"No se pudo eliminar: {e}")
+                    if st.button("🗑️ Eliminar", key=f"del_{c['id']}"):
+                        supabase.table("configuracion_pago").delete().eq("id", c['id']).execute()
+                        st.rerun()
 
-        st.write("---")
-        st.subheader("🖼️ Montos de Verificación por Emoji")
-        try:
-            nuevos_valores = {}
-            query_emojis = supabase.table("montos_emojis").select("*").execute()
-            datos_emojis = {item['emoji']: float(item['monto']) for item in query_emojis.data} if query_emojis.data else {}
-            with st.form("form_montos_emojis"):
-                col1, col2, col3 = st.columns(3)
-                with col1: 
-                    nuevos_valores["💖"] = st.number_input("Monto para 💖", min_value=0.0, value=datos_emojis.get("💖", 3300.0), step=1.0)
-                with col2: 
-                    nuevos_valores["⭐"] = st.number_input("Monto para ⭐", min_value=0.0, value=datos_emojis.get("⭐", 20.0), step=1.0)
-                with col3: 
-                    nuevos_valores["💎"] = st.number_input("Monto para 💎", min_value=0.0, value=datos_emojis.get("💎", 10.0), step=1.0)
-                _, c_btn_em = st.columns([2, 1])
-                with c_btn_em: 
-                    guardar_montos = st.form_submit_button("💾 Guardar Montos", width='stretch')
-                if guardar_montos:
-                    for em, monto_nuevo in nuevos_valores.items(): 
-                        supabase.table("montos_emojis").upsert({"emoji": em, "monto": monto_nuevo}).execute()
-                    st.success("✅ ¡Montos actualizados!")
-                    st.rerun()
-        except Exception as e: 
-            st.error(f"Error al conectar con la configuración de emojis: {e}")
-            
     # --- TAB 3: LOGS ---
     with tab3:
         st.subheader("📋 Historial de Transacciones")
         lista_logs = obtener_todos_los_logs(supabase)
-        
-        if lista_logs and len(lista_logs) > 0:
+        if lista_logs:
             df = pd.DataFrame(lista_logs)
-            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None) - timedelta(hours=4)
-            
-            col_f1, col_f2, col_f3 = st.columns(3)
-            f_inicio = col_f1.date_input("Inicio", value=datetime.now() - timedelta(days=30))
-            f_fin = col_f2.date_input("Fin", value=datetime.now())
-            busqueda_tel = col_f3.text_input("Buscar por Teléfono")
-            
-            mask = (df["created_at"].dt.date >= f_inicio) & (df["created_at"].dt.date <= f_fin)
-            if busqueda_tel:
-                mask = mask & df['phone'].astype(str).str.contains(busqueda_tel, na=False)
-            
-            df_filtrado = df.loc[mask]
-            
-            if not df_filtrado.empty:
-                buffer = io.BytesIO()
-                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                    df_filtrado.to_excel(writer, index=False, sheet_name='Historial')
-                    writer.sheets['Historial'].column_dimensions['B'].width = 25
-                
-                st.download_button("📊 Descargar Excel", data=buffer.getvalue(), 
-                                   file_name="historial.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                
-                st.dataframe(df_filtrado, width='stretch', hide_index=True)
-            else:
-                st.warning("No se encontraron registros con los filtros actuales. Prueba cambiando el rango de fechas.")
-        else:
-            st.info("No hay datos cargados en el historial o la base de datos está vacía.")
+            st.dataframe(df, width='stretch', hide_index=True)
