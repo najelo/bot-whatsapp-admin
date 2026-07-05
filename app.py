@@ -88,54 +88,89 @@ with col_centro:
     st.markdown("<br>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🛠️ Constructor de Flujos", "💳 Gestión de Pagos", "📋 Historial de Logs"])
 
-    # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
+  # --- TAB 1: CONSTRUCTOR DE FLUJOS ---
     with tab1:
-        st.write("### 🔀 Flujos Automatizados de Conversación")
+        st.write("### 🔀 Constructor Visual de Flujos (Flow Builder)")
         
         with st.expander("➕ Crear Nuevo Flujo Visual"):
             with st.form("nuevo_flujo_form", border=False):
-                nombre_flujo = st.text_input("Nombre identificativo de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
+                nombre_flujo = st.text_input("Nombre de la campaña/flujo", placeholder="Ej: Campaña Helados de Fresa")
                 keyword_flujo = st.text_input("Palabra clave disparadora (Trigger)", placeholder="Ej: hola")
                 
-                # CORREGIDO: cambiado a width='stretch'
                 if st.form_submit_button("Inicializar Flujo en Red", width='stretch', type="primary"):
                     if nombre_flujo and keyword_flujo:
                         if crear_nuevo_flujo(nombre_flujo, keyword_flujo):
-                            st.toast("¡Flujo inicializado con éxito! Nodo base 'Inicio' configurado.", icon="✅")
+                            st.toast("¡Flujo inicializado con éxito! Lienzo gráfico listo.", icon="✅")
                             st.rerun()
                         else:
                             st.error("Error al inicializar. Revisa si esa palabra clave ya está ocupada por otro flujo.")
                     else:
                         st.warning("Por favor completa el nombre del flujo y su palabra clave.")
 
-        st.write("#### 🔑 Lienzos y Disparadores Activos")
+        st.write("#### 🔑 Selecciona un Lienzo Activo")
         flujos_actuales = obtener_todos_los_flujos()
         
         if not flujos_actuales:
             st.info("No posees ningún flujo en red configurado. Utiliza el formulario superior para crear el primero.")
         else:
-            for fl in flujos_actuales:
-                with st.container(border=True):
-                    c1, c2 = st.columns([4, 1])
-                    c1.write(f"🗺️ **{fl.get('nombre')}** — Disparador: `{fl.get('palabra_clave')}`")
-                    
-                    if c2.button("👁️ Inspeccionar Red", key=f"flow_{fl['id']}", width='stretch'):
-                        nodos, conexiones = obtener_datos_lienzo(fl['id'])
-                        
-                        st.markdown("---")
-                        st.write(f"**Estructura interna de: `{fl.get('nombre')}`**")
-                        
-                        col_n, col_c = st.columns(2)
-                        with col_n:
-                            st.caption("📦 Bloques (Nodos asignados)")
-                            for n in nodos:
-                                st.code(f"ID: {n['id'][:8]}...\nTipo: {n['tipo_nodo'].upper()}\nConfig: {n['configuracion']}", language="json")
-                        with col_c:
-                            st.caption("🔌 Conexiones (Cables instalados)")
-                            if not conexiones:
-                                i_info = st.info("Este flujo no tiene cables interconectando bloques todavía.")
-                            for con in conexiones:
-                                st.code(f"De: {con['nodo_origen_id'][:8]}... ➡️ A: {con['nodo_destino_id'][:8]}...", language="text")
+            # Creamos un selector de flujo para cargar su lienzo correspondiente
+            opciones_flujo = {f"🗺️ {fl['nombre']} (Trigger: {fl['palabra_clave']})": fl for fl in flujos_actuales}
+            seleccion = st.selectbox("Elige el flujo que deseas editar visualmente:", list(opciones_flujo.keys()))
+            
+            if seleccion:
+                fl_seleccionado = opciones_flujo[seleccion]
+                nodos, conexiones = obtener_datos_lienzo(fl_seleccionado['id'])
+                
+                st.markdown("---")
+                st.write(f"### 🎨 Lienzo de Trabajo: `{fl_seleccionado['nombre']}`")
+                
+                # --- PREPARACIÓN DE DATOS PARA STREAMLIT-REACT-FLOW ---
+                # Importamos de forma segura el componente interactivo
+                from streamlit_react_flow import react_flow
+                
+                flow_nodes = []
+                flow_edges = []
+                
+                # Mapeamos los nodos provenientes de Supabase al formato que entiende el canvas react-flow
+                for n in nodos:
+                    flow_nodes.append({
+                        "id": str(n['id']),
+                        "data": {"label": f"📦 {n['tipo_nodo'].upper()}\n{n['configuracion'].get('titulo', '')}"},
+                        # Si no tiene coordenadas guardadas, asignamos una posición por defecto en el plano
+                        "position": {"x": n.get('posicion_x', 100.0), "y": n.get('posicion_y', 200.0)},
+                        "style": {
+                            "background": "#1e1e24" if n['tipo_nodo'] == "inicio" else "#2e3f7f",
+                            "color": "white",
+                            "border": "1px solid #7928ca",
+                            "borderRadius": "8px",
+                            "padding": "10px",
+                            "fontWeight": "bold"
+                        }
+                    })
+                
+                # Mapeamos las conexiones de la base de datos a cables gráficos
+                for index, con in enumerate(conexiones):
+                    flow_edges.append({
+                        "id": f"edge_{index}",
+                        "source": str(con['nodo_origen_id']),
+                        "target": str(con['nodo_destino_id']),
+                        "animated": True,
+                        "style": {"stroke": "#00f2fe"}
+                    })
+                
+                # --- CONTROL DE ACCIONES DEL LIENZO ---
+                col_c1, col_c2 = st.columns([3, 1])
+                with col_c2:
+                    st.markdown("##### ⚙️ Acciones del Bloque")
+                    tipo_nuevo_nodo = st.selectbox("Añadir bloque al lienzo:", ["Respuesta de Texto", "Condición (Filtro)", "Imagen/Media"])
+                    if st.button("➕ Soltar en Lienzo", width='stretch'):
+                        st.toast("Bloque añadido. ¡Arrástralo y conéctalo!", icon="🚀")
+                
+                with col_c1:
+                    # Renderizado del Canvas gráfico interactivo real
+                    st.caption("💡 Puedes arrastrar los bloques con el ratón y moverte por el plano de la red.")
+                    with st.container(border=True):
+                        react_flow(id=f"flow_builder_{fl_seleccionado['id']}", nodes=flow_nodes, edges=flow_edges, height=450)
 
     # --- TAB 2: PAGOS ---
     with tab2:
