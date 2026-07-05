@@ -7,3 +7,4 @@ reportlab
 openpyxl
 plotly
 streamlit-react-flow
+bcrypt
