@@ -3,7 +3,9 @@ from auth_utils import get_supabase
 
 def obtener_todos_los_flujos():
     try:
-        return get_supabase().table("flujos").select("*").execute().data
+        supabase = get_supabase()
+        res = supabase.table("flujos").select("*").execute()
+        return res.data if res.data else []
     except Exception as e:
         print(f"Error al obtener flujos: {e}")
         return []
@@ -11,29 +13,34 @@ def obtener_todos_los_flujos():
 def crear_nuevo_flujo(nombre, palabra_clave):
     try:
         supabase = get_supabase()
-        # 1. Creamos el registro del flujo
+        keyword_limpia = palabra_clave.lower().strip()
+        
+        # 1. Insertamos el flujo y pedimos explícitamente que devuelva la fila creada
         res_flujo = supabase.table("flujos").insert({
             "nombre": nombre,
-            "palabra_clave": palabra_clave.lower().strip()
+            "palabra_clave": keyword_limpia
         }).execute()
         
-        if not res_flujo.data:
+        # Verificamos si Supabase retornó datos válidos
+        if not res_flujo.data or len(res_flujo.data) == 0:
+            print("Supabase no retornó datos al insertar el flujo.")
             return False
             
         flujo_id = res_flujo.data[0]['id']
         
-        # 2. Por defecto, le creamos su primer bloque automático: El nodo de Inicio
+        # 2. Creamos el nodo de Inicio automático asociado a ese flujo
         supabase.table("nodos_flujo").insert({
             "flujo_id": flujo_id,
             "tipo_nodo": "inicio",
-            "configuracion": {"titulo": f"Disparador: {palabra_clave}"},
+            "configuracion": {"titulo": f"Disparador: {keyword_limpia}"},
             "posicion_x": 100.0,
             "posicion_y": 250.0
         }).execute()
         
         return True
     except Exception as e:
-        print(f"Error al crear flujo: {e}")
+        # Esto imprimirá el error real en los logs de tu Streamlit Cloud para saber qué pasa exactamente
+        print(f"ERROR REAL EN CREAR_NUEVO_FLUJO: {e}")
         return False
 
 def obtener_datos_lienzo(flujo_id):
