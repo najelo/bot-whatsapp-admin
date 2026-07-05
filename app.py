@@ -111,11 +111,14 @@ def modal_editar_nodo(nodo):
             if nodo['tipo_nodo'] == "inicio":
                 st.error("No puedes borrar el Inicio.")
             else:
-                supabase.table("conexiones_flujo").delete().eq("nodo_origen_id", nodo['id']).execute()
-                supabase.table("conexiones_flujo").delete().eq("nodo_destino_id", nodo['id']).execute()
-                supabase.table("nodos_flujo").delete().eq("id", nodo['id']).execute()
-                st.toast("Bloque eliminado", icon="🗑️")
-                st.rerun()
+                try:
+                    supabase.table("conexiones_flujo").delete().eq("nodo_origen_id", nodo['id']).execute()
+                    supabase.table("conexiones_flujo").delete().eq("nodo_destino_id", nodo['id']).execute()
+                    supabase.table("nodos_flujo").delete().eq("id", nodo['id']).execute()
+                    st.toast("Bloque eliminado", icon="🗑️")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al eliminar: {e}")
 
 @st.dialog("Editar Cuenta de Pago", width="medium")
 def abrir_editor_pago(cuenta):
@@ -181,7 +184,9 @@ with col_centro:
                         
                     if st.button("🖼️ Media (Imagen)", icon="📁", width="stretch"):
                         modal_crear_nodo(fl_seleccionado['id'], "media")
-with col_canvas:
+
+                # CORRECCIÓN DE IDENTACIÓN: Esta columna ahora está perfectamente dentro de 'if seleccion:'
+                with col_canvas:
                     st.write(f"### 🎨 Lienzo Activo: `{fl_seleccionado['nombre']}`")
                     from streamlit_react_flow import react_flow
                     
@@ -223,29 +228,24 @@ with col_canvas:
                         elementos_canvas = flow_nodes + flow_edges
                         
                         try:
-                            # Renderizado del lienzo interactivo
                             flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles={"height": "500px", "width": "100%", "background": "#121214"})
                             
-                            # CAPTURA DE EVENTOS CORREGIDA
                             if flow_action:
-                                # 1. Validar si se seleccionó o clickeó un nodo
                                 id_nodo_detectado = None
                                 
+                                # Captura por click clásico o por selección del elemento
                                 if "action" in flow_action and flow_action["action"] == "click":
                                     id_nodo_detectado = flow_action["node"].get("id")
                                 elif "selectedElements" in flow_action and flow_action["selectedElements"]:
-                                    # Alternativa robusta si el click directo falla en ciertos navegadores
                                     primer_elemento = flow_action["selectedElements"][0]
-                                    if primer_elemento.get("type") != "edge": # Asegurar que es nodo y no un cable
+                                    if primer_elemento.get("type") != "edge":
                                         id_nodo_detectado = primer_elemento.get("id")
                                 
-                                # Si encontramos un ID válido, disparamos el modal flotante de edición/borrado
                                 if id_nodo_detectado:
                                     nodo_encontrado = next((x for x in nodos if str(x['id']) == str(id_nodo_detectado)), None)
                                     if nodo_encontrado:
                                         modal_editar_nodo(nodo_encontrado)
                                 
-                                # 2. Validar si se arrastró un nuevo cable (Conexión)
                                 if "action" in flow_action and flow_action["action"] == "connect":
                                     origen = flow_action["edge"]["source"]
                                     destino = flow_action["edge"]["target"]
@@ -256,66 +256,6 @@ with col_canvas:
                                     }).execute()
                                     st.rerun()
                                     
-                        except Exception as e:
-                            st.error(f"Error en el lienzo: {e}")
-                    
-                    # CORRECCIÓN: Eliminados códigos feos. Ahora solo muestra el nombre limpio asignado.
-                    for n in nodos:
-                        color_bloque = "#2e3f7f"
-                        if n['tipo_nodo'] == "inicio": color_bloque = "#1b4332"
-                        elif n['tipo_nodo'] == "condicion": color_bloque = "#7400b8"
-                        elif n['tipo_nodo'] == "media": color_bloque = "#ee6c4d"
-                            
-                        flow_nodes.append({
-                            "id": str(n['id']),
-                            # Se muestra únicamente el título estético asignado por el usuario
-                            "data": {"label": f"{n['configuracion'].get('titulo', 'Sin Nombre')}"},
-                            "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
-                            "style": {
-                                "background": color_bloque,
-                                "color": "white",
-                                "border": "2px solid #ffffff",
-                                "borderRadius": "10px",
-                                "padding": "15px",
-                                "fontWeight": "bold",
-                                "textAlign": "center"
-                            }
-                        })
-                    
-                    for index, con in enumerate(conexiones):
-                        flow_edges.append({
-                            "id": f"edge_{index}",
-                            "source": str(con['nodo_origen_id']),
-                            "target": str(con['nodo_destino_id']),
-                            "animated": True,
-                            "style": {"stroke": "#00f2fe", "strokeWidth": 3}
-                        })
-                    
-                    with st.container(border=True):
-                        id_canvas = f"flow_{str(fl_seleccionado['id'])}"
-                        elementos_canvas = flow_nodes + flow_edges
-                        
-                        try:
-                            flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles={"height": "500px", "width": "100%", "background": "#121214"})
-                            
-                            if flow_action and "action" in flow_action:
-                                # INTERACTIVIDAD AL HACER CLICK: Detecta si se seleccionó una caja para abrir el modal flotante
-                                if flow_action["action"] == "click":
-                                    id_clickeado = int(flow_action["node"]["id"])
-                                    nodo_encontrado = next((x for x in nodos if x['id'] == id_clickeado), None)
-                                    if nodo_encontrado:
-                                        modal_editar_nodo(nodo_encontrado)
-                                
-                                # Si se conectan con cables
-                                elif flow_action["action"] == "connect":
-                                    origen = flow_action["edge"]["source"]
-                                    destino = flow_action["edge"]["target"]
-                                    supabase.table("conexiones_flujo").insert({
-                                        "flujo_id": fl_seleccionado['id'],
-                                        "nodo_origen_id": int(origen),
-                                        "nodo_destino_id": int(destino)
-                                    }).execute()
-                                    st.rerun()
                         except Exception as e:
                             st.error(f"Error en el lienzo: {e}")
 
