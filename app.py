@@ -185,7 +185,6 @@ with col_centro:
                     if st.button("🖼️ Media (Imagen)", icon="📁", width="stretch"):
                         modal_crear_nodo(fl_seleccionado['id'], "media")
 
-                # CORRECCIÓN DE IDENTACIÓN: Esta columna ahora está perfectamente dentro de 'if seleccion:'
                 with col_canvas:
                     st.write(f"### 🎨 Lienzo Activo: `{fl_seleccionado['nombre']}`")
                     from streamlit_react_flow import react_flow
@@ -194,23 +193,39 @@ with col_centro:
                     flow_edges = []
                     
                     for n in nodos:
-                        color_bloque = "#2e3f7f"
-                        if n['tipo_nodo'] == "inicio": color_bloque = "#1b4332"
-                        elif n['tipo_nodo'] == "condicion": color_bloque = "#7400b8"
-                        elif n['tipo_nodo'] == "media": color_bloque = "#ee6c4d"
+                        # Paleta premium moderna e interactiva
+                        if n['tipo_nodo'] == "inicio":
+                            bg_color = "linear-gradient(135deg, #11998e, #38ef7d)" # Verde Esmeralda gradiente
+                            border_color = "#51f198"
+                            label_icon = "🟢 "
+                        elif n['tipo_nodo'] == "condicion":
+                            bg_color = "linear-gradient(135deg, #8a2be2, #4a00e0)" # Violeta Eléctrico gradiente
+                            border_color = "#b07cff"
+                            label_icon = "⚡ "
+                        elif n['tipo_nodo'] == "media":
+                            bg_color = "linear-gradient(135deg, #ff9966, #ff5e62)" # Coral Intenso gradiente
+                            border_color = "#ff9e9e"
+                            label_icon = "🖼️ "
+                        else: # texto estándar
+                            bg_color = "linear-gradient(135deg, #2193b0, #6dd5ed)" # Azul Neon suave gradiente
+                            border_color = "#99ecff"
+                            label_icon = "💬 "
                             
                         flow_nodes.append({
                             "id": str(n['id']),
-                            "data": {"label": f"{n['configuracion'].get('titulo', 'Sin Nombre')}"},
+                            "data": {"label": f"{label_icon}{n['configuracion'].get('titulo', 'Sin Nombre')}"},
                             "position": {"x": float(n.get('posicion_x', 100)), "y": float(n.get('posicion_y', 200))},
                             "style": {
-                                "background": color_bloque,
-                                "color": "white",
-                                "border": "2px solid #ffffff",
-                                "borderRadius": "10px",
-                                "padding": "15px",
-                                "fontWeight": "bold",
-                                "textAlign": "center"
+                                "background": bg_color,
+                                "color": "#ffffff",
+                                "border": f"1px solid {border_color}",
+                                "borderRadius": "12px",
+                                "padding": "14px 20px",
+                                "fontWeight": "600",
+                                "textAlign": "center",
+                                "fontFamily": "Segoe UI, sans-serif",
+                                "boxShadow": "0 4px 15px rgba(0,0,0,0.35)", # Sombra elegante para dar profundidad
+                                "minWidth": "160px"
                             }
                         })
                     
@@ -220,7 +235,8 @@ with col_centro:
                             "source": str(con['nodo_origen_id']),
                             "target": str(con['nodo_destino_id']),
                             "animated": True,
-                            "style": {"stroke": "#00f2fe", "strokeWidth": 3}
+                            "style": {"stroke": "#00f2fe", "strokeWidth": 3, "opacity": 0.85},
+                            "type": "smoothstep" # Línea curveada moderna en las esquinas
                         })
                     
                     with st.container(border=True):
@@ -228,12 +244,21 @@ with col_centro:
                         elementos_canvas = flow_nodes + flow_edges
                         
                         try:
-                            flow_action = react_flow(name=id_canvas, elements=elementos_canvas, flow_styles={"height": "500px", "width": "100%", "background": "#121214"})
+                            # Contenedor del lienzo con una cuadrícula sutil oscura de fondo estilo Cyberpunk
+                            flow_action = react_flow(
+                                name=id_canvas, 
+                                elements=elementos_canvas, 
+                                flow_styles={
+                                    "height": "550px", 
+                                    "width": "100%", 
+                                    "background": "#0f0f11",
+                                    "borderRadius": "10px"
+                                }
+                            )
                             
                             if flow_action:
                                 id_nodo_detectado = None
                                 
-                                # Captura por click clásico o por selección del elemento
                                 if "action" in flow_action and flow_action["action"] == "click":
                                     id_nodo_detectado = flow_action["node"].get("id")
                                 elif "selectedElements" in flow_action and flow_action["selectedElements"]:
