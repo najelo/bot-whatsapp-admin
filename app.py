@@ -73,7 +73,6 @@ with col_centro:
         if st.button("🔄 Actualizar Métricas", width='stretch', type="secondary"):
             st.rerun()
             
-    # CORREGIDO: cambiado de obtener_metrics_del_dia a obtener_metricas_del_dia
     metricas = obtener_metricas_del_dia(supabase)
     
     with st.container(border=True):
@@ -166,11 +165,19 @@ with col_centro:
                     with st.container(border=True):
                         id_canvas = f"flow_{str(fl_seleccionado['id'])}"
                         
+                        # BLOQUE MODIFICADO: Triple verificación de firmas para evitar el TypeError
                         try:
-                            elementos_canvas = flow_nodes + flow_edges
-                            react_flow(id_canvas, elements=elementos_canvas, height=450)
+                            # Opción A: Versiones modernas con parámetros nombrados separados
+                            react_flow(id=id_canvas, nodes=flow_nodes, edges=flow_edges, height=450)
                         except TypeError:
-                            react_flow(id_canvas, flow_nodes, flow_edges, height=450)
+                            try:
+                                # Opción B: Versiones que empaquetan en un arreglo nombrado de elementos
+                                elementos_canvas = flow_nodes + flow_edges
+                                react_flow(id=id_canvas, elements=elementos_canvas, height=450)
+                            except TypeError:
+                                # Opción C: Versiones antiguas basadas enteramente en argumentos posicionales ordenados
+                                elementos_canvas = flow_nodes + flow_edges
+                                react_flow(id_canvas, elementos_canvas, height=450)
 
     # --- TAB 2: PAGOS ---
     with tab2:
