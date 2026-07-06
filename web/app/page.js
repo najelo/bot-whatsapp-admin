@@ -1,57 +1,62 @@
+// web/app/page.js
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import 'reactflow/dist/style.css';
 import { createClient } from '@supabase/supabase-js';
-import FlowEditor from './FlowEditor';
 
 const ReactFlow = dynamic(() => import('reactflow'), { ssr: false });
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '');
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL, 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
-export default function Home() {
-  const [nodes, setNodes] = useState([{ id: '1', data: { label: 'Inicio', text: '', media: '', delay: '' }, position: { x: 250, y: 50 } }]);
+export default function FlowBuilder() {
+  const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
-  const [selectedNode, setSelectedNode] = useState(null);
+
+  // Cargar nodos de la base de datos al iniciar
+  useEffect(() => {
+    const fetchFlow = async () => {
+      const { data, error } = await supabase.from('nodos').select('*').eq('id', 'flow_principal').single();
+      if (data) {
+        setNodes(data.nodes);
+        setEdges(data.edges);
+      }
+    };
+    fetchFlow();
+  }, []);
 
   const addNode = (type) => {
     const newNode = {
       id: Date.now().toString(),
-      data: { label: type, text: '', media: '', delay: '' },
-      position: { x: Math.random() * 200, y: Math.random() * 200 },
+      data: { label: type },
+      position: { x: Math.random() * 400, y: 100 },
     };
     setNodes((nds) => [...nds, newNode]);
   };
 
-  const updateNodeData = (id, key, value) => {
-    setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, [key]: value } } : n));
-    if (selectedNode) setSelectedNode({ ...selectedNode, data: { ...selectedNode.data, [key]: value } });
-  };
-
-  const saveFlow = async () => {
+  const saveToDatabase = async () => {
     const { error } = await supabase.from('nodos').upsert({ id: 'flow_principal', nodes, edges });
-    alert(error ? 'Error: ' + error.message : '¡Guardado correctamente!');
+    alert(error ? 'Error al guardar' : '¡Flujo guardado en Supabase!');
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0a0a0b', color: 'white' }}>
-      <aside style={{ width: '220px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333' }}>
-        <h3>Componentes</h3>
-        {['Texto', 'Imagen', 'Video', 'Audio', 'PDF', 'Esperar'].map(t => (
+    <div style={{ height: '100%', display: 'flex' }}>
+      {/* Panel de "Agregar Nodo" */}
+      <div style={{ width: '200px', padding: '20px', borderRight: '1px solid #333' }}>
+        <h3>Agregar Nodo</h3>
+        {['Texto', 'Imagen', 'Menú', 'Espera'].map(t => (
           <button key={t} onClick={() => addNode(t)} style={btnStyle}>+ Nodo {t}</button>
         ))}
-        <button onClick={saveFlow} style={{...btnStyle, background: '#4f46e5', marginTop: '20px'}}>💾 Guardar</button>
-      </aside>
-
-      <div style={{ flexGrow: 1 }}>
-        <ReactFlow nodes={nodes} edges={edges} onNodeClick={(e, n) => setSelectedNode(n)} />
+        <button onClick={saveToDatabase} style={{...btnStyle, background: '#4f46e5', marginTop: '20px'}}>💾 Guardar</button>
       </div>
 
-      {selectedNode && (
-        <div style={{ width: '300px', borderLeft: '1px solid #333' }}>
-          <FlowEditor selectedNode={selectedNode} onUpdate={updateNodeData} onClose={() => setSelectedNode(null)} />
-        </div>
-      )}
+      {/* Lienzo ReactFlow */}
+      <div style={{ flexGrow: 1 }}>
+        <ReactFlow nodes={nodes} edges={edges} />
+      </div>
     </div>
   );
 }
