@@ -41,22 +41,43 @@ export default function Home() {
         </div>
 
         {/* Lienzo */}
-        <div style={{ flexGrow: 1, position: 'relative' }}>
-          <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onConnect={onConnect} onNodeClick={(e, n) => setSelectedNode(n)}>
-            <Background color="#333" />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
-        </div>
+     {selectedNode && (
+  <div style={{ width: '300px', background: '#1c1c1f', padding: '20px', borderLeft: '1px solid #333' }}>
+    <h3>Configurar: {selectedNode.data.label}</h3>
+    
+    {/* Campo común para todos */}
+    <label>Respuesta/Texto:</label>
+    <textarea 
+      value={selectedNode.data.text} 
+      onChange={(e) => updateNodeData('text', e.target.value)} 
+      style={{ width: '100%', height: '80px', background: '#2d2d31', color: 'white', marginBottom: '10px' }} 
+    />
 
-        {/* Editor del Nodo seleccionado */}
-        {selectedNode && (
-          <div style={{ width: '300px', background: '#1c1c1f', padding: '20px', borderLeft: '1px solid #333' }}>
-            <h3>Configurar {selectedNode.data.label}</h3>
-            <textarea value={selectedNode.data.text} onChange={(e) => setNodes(nodes.map(n => n.id === selectedNode.id ? {...n, data: {...n.data, text: e.target.value}} : n))} style={{ width: '100%', height: '100px', background: '#2d2d31', color: 'white' }} />
-            <button onClick={() => setSelectedNode(null)} style={{ marginTop: '20px', width: '100%' }}>Guardar</button>
-          </div>
-        )}
+    {/* Condicional según el tipo de nodo */}
+    {selectedNode.data.label === 'Imagen/Archivo' && (
+      <>
+        <label>URL de la Imagen:</label>
+        <input type="text" placeholder="https://..." onChange={(e) => updateNodeData('media_url', e.target.value)} style={{ width: '100%', marginBottom: '10px' }} />
+      </>
+    )}
+
+    {selectedNode.data.label === 'Esperar' && (
+      <>
+        <label>Segundos de espera:</label>
+        <input type="number" onChange={(e) => updateNodeData('delay', e.target.value)} style={{ width: '100%', marginBottom: '10px' }} />
+      </>
+    )}
+
+    {selectedNode.data.label === 'Audio' && (
+      <>
+        <label>URL del Audio (.ogg/.mp3):</label>
+        <input type="text" placeholder="https://..." onChange={(e) => updateNodeData('audio_url', e.target.value)} style={{ width: '100%', marginBottom: '10px' }} />
+      </>
+    )}
+
+    <button onClick={() => setSelectedNode(null)} style={{ marginTop: '20px', width: '100%' }}>Cerrar</button>
+  </div>
+)}
       </div>
     );
   };
