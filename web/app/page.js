@@ -4,7 +4,7 @@ import ReactFlow, { Background, Controls, applyNodeChanges, addEdge, MiniMap } f
 import 'reactflow/dist/style.css';
 import { createClient } from '@supabase/supabase-js';
 
-// 1. Configuración de Supabase (Asegúrate de tener tus variables .env)
+// Inicializa Supabase
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 export default function Home() {
@@ -30,9 +30,17 @@ export default function Home() {
     if (selectedNode) setSelectedNode({ ...selectedNode, data: { ...selectedNode.data, [key]: value } });
   };
 
+  const uploadToSupabase = async (file) => {
+    const fileName = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage.from('archivos-bot').upload(fileName, file);
+    if (error) { alert("Error al subir: " + error.message); return null; }
+    const { data: publicUrl } = supabase.storage.from('archivos-bot').getPublicUrl(fileName);
+    return publicUrl.publicUrl;
+  };
+
   const saveFlow = async () => {
     const { error } = await supabase.from('nodos').upsert({ id: 'flow_principal', nodes, edges });
-    alert(error ? 'Error: ' + error.message : '¡Flujo guardado con éxito!');
+    alert(error ? 'Error al guardar: ' + error.message : '¡Flujo guardado con éxito!');
   };
 
   const renderView = () => {
@@ -40,13 +48,13 @@ export default function Home() {
     
     return (
       <div style={{ display: 'flex', flexGrow: 1 }}>
-        <div style={{ width: '220px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333' }}>
+        <aside style={{ width: '220px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333' }}>
           <h3>Componentes</h3>
-          <button style={btnStyle} onClick={() => addNode('Texto')}>+ Nodo Texto</button>
-          <button style={btnStyle} onClick={() => addNode('Imagen')}>+ Nodo Imagen</button>
-          <button style={btnStyle} onClick={() => addNode('Esperar')}>+ Nodo Espera</button>
+          {['Texto', 'Imagen', 'Esperar', 'Menú'].map(type => (
+            <button key={type} style={btnStyle} onClick={() => addNode(type)}>+ Nodo {type}</button>
+          ))}
           <button style={{...btnStyle, background: '#4f46e5', marginTop: '20px'}} onClick={saveFlow}>💾 Guardar Flujo</button>
-        </div>
+        </aside>
 
         <div style={{ flexGrow: 1, position: 'relative' }}>
           <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onConnect={onConnect} onNodeClick={(e, n) => setSelectedNode(n)}>
@@ -55,18 +63,27 @@ export default function Home() {
         </div>
 
         {selectedNode && (
-          <div style={{ width: '320px', background: '#1c1c1f', padding: '20px', borderLeft: '1px solid #333', color: 'white' }}>
-            <h3>Configurar {selectedNode.data.label}</h3>
-            <label>Contenido:</label>
+          <div style={{ width: '320px', background: '#1c1c1f', padding: '20px', borderLeft: '1px solid #333', color: 'white', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>{selectedNode.data.label}</h3>
+              <button onClick={() => { setNodes(nds => nds.filter(n => n.id !== selectedNode.id)); setSelectedNode(null); }} style={{ background: '#ff4d4d', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>🗑️</button>
+            </div>
+            
+            <label>Mensaje:</label>
             <textarea value={selectedNode.data.text} onChange={(e) => updateNodeData(selectedNode.id, 'text', e.target.value)} style={inputStyle} />
             
             {selectedNode.data.label === 'Imagen' && (
-              <> <label>URL Imagen:</label><input type="text" onChange={(e) => updateNodeData(selectedNode.id, 'media', e.target.value)} style={inputStyle} /> </>
+              <div style={{marginTop: '10px'}}>
+                <label>Subir archivo:</label>
+                <input type="file" onChange={async (e) => { const url = await uploadToSupabase(e.target.files[0]); if(url) updateNodeData(selectedNode.id, 'media', url); }} style={{width: '100%'}} />
+                <input type="text" placeholder="URL media..." value={selectedNode.data.media || ''} onChange={(e) => updateNodeData(selectedNode.id, 'media', e.target.value)} style={inputStyle} />
+              </div>
             )}
+            
             {selectedNode.data.label === 'Esperar' && (
-              <> <label>Segundos:</label><input type="number" onChange={(e) => updateNodeData(selectedNode.id, 'delay', e.target.value)} style={inputStyle} /> </>
+              <> <label>Segundos:</label><input type="number" value={selectedNode.data.delay || ''} onChange={(e) => updateNodeData(selectedNode.id, 'delay', e.target.value)} style={inputStyle} /> </>
             )}
-            <button onClick={() => setSelectedNode(null)} style={{ width: '100%', padding: '10px', marginTop: '10px' }}>Cerrar</button>
+            <button onClick={() => setSelectedNode(null)} style={{ width: '100%', padding: '10px', marginTop: '20px' }}>Cerrar</button>
           </div>
         )}
       </div>
