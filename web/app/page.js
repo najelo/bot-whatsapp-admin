@@ -11,7 +11,7 @@ const initialNodes = [
 export default function Home() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
-      <ReactFlow nodes={initialNodes} />
-    </div>
+  <ReactFlow nodes={initialNodes} />
+</div>
   );
 }
