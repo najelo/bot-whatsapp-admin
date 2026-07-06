@@ -10,65 +10,64 @@ const ReactFlow = dynamic(() => import('reactflow'), { ssr: false });
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 export default function Dashboard() {
-  const [activeView, setActiveView] = useState('flujos'); // Gestiona qué parte del menú está abierta
+  const [activeView, setActiveView] = useState('flujos');
   const [nodes, setNodes] = useState([]);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
 
-  const menuItems = [
-    { id: 'flujos', label: 'Flujos', icon: '🚀' },
-    { id: 'pagos', label: 'Pagos', icon: '💳' },
-    { id: 'logs', label: 'Logs', icon: '📜' },
-    { id: 'config', label: 'Configuración', icon: '⚙️' }
-  ];
+  // Carga inicial
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('nodos').select('*').eq('id', 'flow_principal').single();
+      if (data) setNodes(data.nodes || []);
+    };
+    load();
+  }, []);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#050505', color: 'white' }}>
-      {/* Menú Lateral Profesional */}
-      <aside style={{ width: '250px', background: '#0f0f12', padding: '20px', borderRight: '1px solid #27272a' }}>
-        <h2 style={{ fontSize: '20px', marginBottom: '30px' }}>SendyPRO Admin</h2>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {menuItems.map(item => (
-            <button 
-              key={item.id} 
-              onClick={() => setActiveView(item.id)}
-              style={{ ...navButtonStyle, background: activeView === item.id ? '#27272a' : 'transparent' }}
-            >
-              {item.icon} {item.label}
-            </button>
-          ))}
-        </nav>
+      {/* Sidebar */}
+      <aside style={{ width: '250px', background: '#0f0f12', padding: '20px' }}>
+        <h2>SendyPRO</h2>
+        {['flujos', 'pagos', 'logs'].map(view => (
+          <button key={view} onClick={() => setActiveView(view)} style={{ display: 'block', width: '100%', margin: '10px 0', padding: '10px' }}>
+            {view.toUpperCase()}
+          </button>
+        ))}
+        {activeView === 'flujos' && (
+          <div style={{ marginTop: '20px' }}>
+            {Object.keys(nodeConfig).map(t => (
+              <button key={t} onClick={() => setNodes([...nodes, { id: Date.now().toString(), data: { label: t, contents: [] }, position: { x: 50, y: 50 } }])} style={{ width: '100%' }}>+ {t}</button>
+            ))}
+          </div>
+        )}
       </aside>
 
-      {/* Contenido Dinámico según la selección */}
+      {/* Área Principal - Mantenemos el lienzo siempre presente */}
       <main style={{ flexGrow: 1, position: 'relative' }}>
-        {activeView === 'flujos' ? (
-          <>
-            <ReactFlow 
-              nodes={nodes.map(n => ({ ...n, style: getNodeStyle(n.data.label) }))}
-              onNodeClick={(_, n) => setSelectedNodeId(n.id)}
+        {/* Contenedor del Lienzo */}
+        <div style={{ display: activeView === 'flujos' ? 'block' : 'none', height: '100%' }}>
+          <ReactFlow 
+            nodes={nodes.map(n => ({ ...n, style: getNodeStyle(n.data.label) }))}
+            onNodeClick={(_, n) => setSelectedNodeId(n.id)}
+          />
+        </div>
+
+        {/* Contenedor de otras secciones */}
+        {activeView !== 'flujos' && (
+          <div style={{ padding: '40px' }}><h1>Sección {activeView}</h1></div>
+        )}
+
+        {/* Editor (Sidebar derecho) */}
+        {selectedNodeId && activeView === 'flujos' && (
+          <div style={{ position: 'absolute', right: 0, top: 0, width: '300px', height: '100%', zIndex: 10 }}>
+            <FlowEditor 
+              node={nodes.find(n => n.id === selectedNodeId)} 
+              onUpdate={(id, data) => setNodes(nodes.map(n => n.id === id ? { ...n, data } : n))}
+              onClose={() => setSelectedNodeId(null)}
             />
-            {selectedNodeId && (
-              <div style={{ position: 'absolute', right: 0, top: 0, width: '300px', height: '100%', zIndex: 10 }}>
-                <FlowEditor 
-                  node={nodes.find(n => n.id === selectedNodeId)} 
-                  onUpdate={(id, data) => setNodes(nodes.map(n => n.id === id ? { ...n, data } : n))}
-                  onClose={() => setSelectedNodeId(null)}
-                />
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ padding: '40px' }}>
-            <h1>Sección: {activeView.toUpperCase()}</h1>
-            <p>Próximamente disponible en esta vista.</p>
           </div>
         )}
       </main>
     </div>
   );
 }
-
-const navButtonStyle = {
-  width: '100%', padding: '12px', textAlign: 'left', borderRadius: '8px',
-  border: 'none', color: '#a1a1aa', cursor: 'pointer', transition: '0.2s'
-};
