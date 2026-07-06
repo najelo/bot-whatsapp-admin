@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import 'reactflow/dist/style.css';
 import { createClient } from '@supabase/supabase-js';
+import FlowEditor from './FlowEditor';
 
 // Importación dinámica para evitar error de "window is not defined" en Vercel
 const ReactFlow = dynamic(() => import('reactflow'), { ssr: false });
