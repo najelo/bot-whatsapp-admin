@@ -13,32 +13,38 @@ export default function FlowBuilder() {
   const [edges, setEdges] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
 
-  // Función para actualizar datos del nodo
-  const updateNodeData = (id, newData) => {
-    setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, ...newData } } : n));
-    setSelectedNode((prev) => ({ ...prev, data: { ...prev.data, ...newData } }));
+  const addNode = (type) => {
+    const newNode = {
+      id: Date.now().toString(),
+      data: { label: type, text: '', media: '' },
+      position: { x: 100, y: 100 },
+    };
+    setNodes((nds) => [...nds, newNode]);
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex' }}>
-      <div style={{ flexGrow: 1, position: 'relative' }}>
-        <ReactFlow 
-          nodes={nodes} 
-          edges={edges} 
-          onNodeClick={(e, n) => setSelectedNode(n)} // ¡Aquí activamos el nodo!
-        />
+    <div style={{ display: 'flex', height: '100vh' }}>
+      {/* Sidebar de Componentes */}
+      <aside style={{ width: '250px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333' }}>
+        <h2 style={{ fontSize: '18px' }}>SendyPRO Admin</h2>
+        {['Texto', 'Imagen', 'Video', 'Audio', 'PDF'].map(t => (
+          <button key={t} onClick={() => addNode(t)} style={btnStyle}>+ {t}</button>
+        ))}
+      </aside>
+
+      {/* Canvas */}
+      <div style={{ flexGrow: 1 }}>
+        <ReactFlow nodes={nodes} edges={edges} onNodeClick={(_, n) => setSelectedNode(n)} />
       </div>
-      
-      {/* Panel lateral de edición */}
+
+      {/* Panel de Edición */}
       {selectedNode && (
         <div style={{ width: '300px', background: '#1c1c1f', borderLeft: '1px solid #333' }}>
-          <FlowEditor 
-            selectedNode={selectedNode} 
-            onUpdate={updateNodeData} 
-            onClose={() => setSelectedNode(null)} 
-          />
+          <FlowEditor node={selectedNode} onClose={() => setSelectedNode(null)} />
         </div>
       )}
     </div>
   );
 }
+
+const btnStyle = { width: '100%', padding: '10px', marginBottom: '8px', background: '#333', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' };
