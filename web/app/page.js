@@ -1,99 +1,57 @@
 'use client';
 import React, { useState, useCallback } from 'react';
-import ReactFlow, { Background, Controls, applyNodeChanges, applyEdgeChanges, addEdge, MiniMap } from 'reactflow';
+import ReactFlow, { Background, Controls, applyNodeChanges, addEdge, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 export default function Home() {
-  const [activeView, setActiveView] = useState('bot-builder');
-  const [nodes, setNodes] = useState([
-    { id: '1', type: 'input', data: { label: 'Inicio', text: 'Hola, bienvenido' }, position: { x: 250, y: 50 } }
-  ]);
+  const [activeView, setActiveView] = useState('flow-builder');
+  const [nodes, setNodes] = useState([{ id: '1', data: { label: 'Inicio' }, position: { x: 250, y: 50 } }]);
   const [edges, setEdges] = useState([]);
-  const [selectedNode, setSelectedNode] = useState(null);
 
+  // Lógica del Lienzo
   const onNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
   const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
-  // Función para agregar nuevos tipos de nodos al lienzo
-  const addNode = (type) => {
-    const newNode = {
-      id: Date.now().toString(),
-      data: { label: type, text: '' },
-      position: { x: Math.random() * 400, y: Math.random() * 400 },
-    };
-    setNodes((nds) => [...nds, newNode]);
-  };
-
-  const renderContent = () => {
-    if (activeView !== 'bot-builder') return <div style={{ padding: '40px' }}>Vista: {activeView}</div>;
-
-    return (
-      <div style={{ display: 'flex', flexGrow: 1 }}>
-        {/* Panel de Herramientas (Opciones del Lienzo) */}
-        <div style={{ width: '200px', background: '#1c1c1f', padding: '15px', borderRight: '1px solid #333' }}>
-          <h4>Componentes</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button onClick={() => addNode('Mensaje Texto')} style={toolBtnStyle}>+ Nodo Texto</button>
-            <button onClick={() => addNode('Imagen/Archivo')} style={toolBtnStyle}>+ Nodo Imagen</button>
-            <button onClick={() => addNode('Menú Opciones')} style={toolBtnStyle}>+ Menú Botones</button>
-            <button onClick={() => addNode('Esperar Respuesta')} style={toolBtnStyle}>+ Esperar</button>
+  const renderView = () => {
+    switch (activeView) {
+      case 'flow-builder':
+        return (
+          <div style={{ flexGrow: 1, position: 'relative', background: '#0a0a0b' }}>
+            <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onConnect={onConnect}>
+              <Background color="#333" />
+              <Controls />
+              <MiniMap />
+            </ReactFlow>
           </div>
-        </div>
-
-        {/* Lienzo */}
-     {selectedNode && (
-  <div style={{ width: '300px', background: '#1c1c1f', padding: '20px', borderLeft: '1px solid #333' }}>
-    <h3>Configurar: {selectedNode.data.label}</h3>
-    
-    {/* Campo común para todos */}
-    <label>Respuesta/Texto:</label>
-    <textarea 
-      value={selectedNode.data.text} 
-      onChange={(e) => updateNodeData('text', e.target.value)} 
-      style={{ width: '100%', height: '80px', background: '#2d2d31', color: 'white', marginBottom: '10px' }} 
-    />
-
-    {/* Condicional según el tipo de nodo */}
-    {selectedNode.data.label === 'Imagen/Archivo' && (
-      <>
-        <label>URL de la Imagen:</label>
-        <input type="text" placeholder="https://..." onChange={(e) => updateNodeData('media_url', e.target.value)} style={{ width: '100%', marginBottom: '10px' }} />
-      </>
-    )}
-
-    {selectedNode.data.label === 'Esperar' && (
-      <>
-        <label>Segundos de espera:</label>
-        <input type="number" onChange={(e) => updateNodeData('delay', e.target.value)} style={{ width: '100%', marginBottom: '10px' }} />
-      </>
-    )}
-
-    {selectedNode.data.label === 'Audio' && (
-      <>
-        <label>URL del Audio (.ogg/.mp3):</label>
-        <input type="text" placeholder="https://..." onChange={(e) => updateNodeData('audio_url', e.target.value)} style={{ width: '100%', marginBottom: '10px' }} />
-      </>
-    )}
-
-    <button onClick={() => setSelectedNode(null)} style={{ marginTop: '20px', width: '100%' }}>Cerrar</button>
-  </div>
-)}
-      </div>
-    );
+        );
+      case 'pagos':
+        return <div style={{ padding: '40px', color: 'white' }}><h1>Gestión de Pagos</h1><p>Conectado con pagos_utils.py</p></div>;
+      case 'logs':
+        return <div style={{ padding: '40px', color: 'white' }}><h1>Logs del Sistema</h1><p>Historial y errores</p></div>;
+      default:
+        return <div>Seleccione una opción</div>;
+    }
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0f0f11', color: 'white' }}>
-      <aside style={{ width: '200px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333' }}>
-        <h2 style={{ fontSize: '1rem', marginBottom: '20px' }}>SendyPRO Admin</h2>
-        <button style={navBtnStyle} onClick={() => setActiveView('bot-builder')}>Lienzo del Bot</button>
-        <button style={navBtnStyle} onClick={() => setActiveView('pagos')}>Gestión de Pagos</button>
-        <button style={navBtnStyle} onClick={() => setActiveView('logs')}>Logs y Errores</button>
+    <div style={{ display: 'flex', height: '100vh', background: '#1c1c1f' }}>
+      {/* Sidebar Profesional */}
+      <aside style={{ width: '260px', background: '#0f0f11', borderRight: '1px solid #333', display: 'flex', flexDirection: 'column', padding: '20px' }}>
+        <h2 style={{ color: 'white', fontSize: '1.2rem', marginBottom: '30px' }}>SendyPRO Admin</h2>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button style={navStyle} onClick={() => setActiveView('flow-builder')}>🤖 Flujos (Lienzo)</button>
+          <button style={navStyle} onClick={() => setActiveView('pagos')}>💳 Gestión de Pagos</button>
+          <button style={navStyle} onClick={() => setActiveView('logs')}>📜 Logs y Errores</button>
+        </div>
       </aside>
-      {renderContent()}
+
+      {/* Área Principal */}
+      {renderView()}
     </div>
   );
 }
 
-const toolBtnStyle = { background: '#333', color: 'white', border: 'none', padding: '10px', cursor: 'pointer', borderRadius: '4px' };
-const navBtnStyle = { background: 'transparent', border: '1px solid #444', color: 'white', padding: '10px', width: '100%', textAlign: 'left', marginBottom: '10px' };
+const navStyle = {
+  background: '#2d2d31', color: 'white', border: 'none', padding: '12px', textAlign: 'left', borderRadius: '8px', cursor: 'pointer'
+};
