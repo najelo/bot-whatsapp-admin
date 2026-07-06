@@ -1,66 +1,55 @@
 'use client';
-
-import React, { useState, useCallback, useEffect } from 'react';
-import ReactFlow, { 
-  addEdge, Background, Controls, MiniMap, 
-  applyEdgeChanges, applyNodeChanges, addEdge as applyEdge 
-} from 'reactflow';
+import React, { useState, useCallback } from 'react';
+import ReactFlow, { Background, Controls, applyNodeChanges, applyEdgeChanges, addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
-
-// 1. Aquí definirías tu conexión a Supabase (usando tu cliente de Supabase)
-// import { createClient } from '@supabase/supabase-js';
 
 export default function Home() {
   const [nodes, setNodes] = useState([
-    { id: '1', type: 'input', data: { label: 'Inicio del Bot' }, position: { x: 250, y: 50 } },
+    { id: '1', type: 'input', data: { label: 'Mensaje Bienvenida', text: 'Hola, ¿cómo estás?' }, position: { x: 250, y: 50 } },
   ]);
   const [edges, setEdges] = useState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
 
-  // Funciones básicas de React Flow
   const onNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
-  const onEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
+  const onNodeClick = (event, node) => setSelectedNode(node);
 
-  // 2. Función para GUARDAR los nodos en Supabase
-  const saveFlowToDatabase = async () => {
-    console.log("Guardando en Supabase...", { nodes, edges });
-    // Aquí iría tu lógica: await supabase.from('nodos').upsert(...)
-    alert("¡Flujo guardado con éxito!");
+  const updateNodeData = (key, value) => {
+    setNodes((nds) => nds.map((node) => 
+      node.id === selectedNode.id ? { ...node, data: { ...node.data, [key]: value } } : node
+    ));
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#0f0f11' }}>
-      {/* Sidebar de Control */}
-      <aside style={{ width: '280px', background: '#1c1c1f', color: 'white', padding: '20px', borderRight: '1px solid #333' }}>
-        <h2 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Panel de Control</h2>
-        
-        <button 
-          onClick={saveFlowToDatabase}
-          style={{ width: '100%', padding: '10px', background: '#4f46e5', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', marginBottom: '10px' }}>
-          Guardar Flujo
+    <div style={{ display: 'flex', height: '100vh', background: '#0f0f11', color: 'white' }}>
+      {/* 1. Sidebar de Componentes */}
+      <aside style={{ width: '250px', borderRight: '1px solid #333', padding: '20px' }}>
+        <h3>Bot Builder</h3>
+        <button onClick={() => setNodes([...nodes, { id: `${nodes.length + 1}`, data: { label: 'Nuevo Mensaje', text: '' }, position: { x: 50, y: 50 } }])}>
+          + Agregar Nodo
         </button>
-
-        <div style={{ marginTop: '20px', fontSize: '0.9rem', color: '#a1a1aa' }}>
-          <p>• Estado: Conectado a Supabase</p>
-          <p>• Bot: Activo</p>
-        </div>
       </aside>
 
-      {/* Área del Lienzo Pro */}
-      <div style={{ flexGrow: 1, position: 'relative' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          fitView
-        >
-          <Background color="#333" gap={20} />
+      {/* 2. El Lienzo */}
+      <div style={{ flexGrow: 1 }}>
+        <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onNodeClick={onNodeClick} onConnect={(p) => setEdges((eds) => addEdge(p, eds))}>
+          <Background color="#333" />
           <Controls />
-          <MiniMap />
         </ReactFlow>
       </div>
+
+      {/* 3. Panel de Configuración (Donde configuras el bot) */}
+      {selectedNode && (
+        <div style={{ width: '300px', background: '#1c1c1f', padding: '20px', borderLeft: '1px solid #333' }}>
+          <h3>Configurar Nodo</h3>
+          <label>Mensaje del Bot:</label>
+          <textarea 
+            value={selectedNode.data.text} 
+            onChange={(e) => updateNodeData('text', e.target.value)}
+            style={{ width: '100%', height: '100px', background: '#2d2d31', color: 'white', marginTop: '10px' }}
+          />
+          <button onClick={() => setSelectedNode(null)} style={{ marginTop: '20px' }}>Cerrar</button>
+        </div>
+      )}
     </div>
   );
 }
