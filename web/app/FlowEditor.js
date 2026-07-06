@@ -7,7 +7,10 @@ import FlowEditor from './FlowEditor';
 
 const ReactFlow = dynamic(() => import('reactflow'), { ssr: false });
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '');
+// Inicialización segura de Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function Home() {
   const [nodes, setNodes] = useState([{ id: '1', data: { label: 'Inicio', text: '', media: '', delay: '' }, position: { x: 250, y: 50 } }]);
@@ -34,8 +37,9 @@ export default function Home() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0a0a0b', color: 'white' }}>
-      <aside style={{ width: '220px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#0a0a0b', color: 'white', overflow: 'hidden' }}>
+      {/* Panel Izquierdo: Botones */}
+      <aside style={{ width: '220px', background: '#1c1c1f', padding: '20px', borderRight: '1px solid #333', flexShrink: 0 }}>
         <h3>Componentes</h3>
         {['Texto', 'Imagen', 'Video', 'Audio', 'PDF', 'Esperar'].map(t => (
           <button key={t} onClick={() => addNode(t)} style={btnStyle}>+ Nodo {t}</button>
@@ -43,17 +47,28 @@ export default function Home() {
         <button onClick={saveFlow} style={{...btnStyle, background: '#4f46e5', marginTop: '20px'}}>💾 Guardar</button>
       </aside>
 
-      <div style={{ flexGrow: 1 }}>
-        <ReactFlow nodes={nodes} edges={edges} onNodeClick={(e, n) => setSelectedNode(n)} />
+      {/* Área Central: Lienzo */}
+      <div style={{ flexGrow: 1, position: 'relative' }}>
+        <ReactFlow 
+          nodes={nodes} 
+          edges={edges} 
+          onNodeClick={(e, n) => setSelectedNode(n)} 
+          fitView 
+        />
       </div>
 
+      {/* Panel Derecho: Editor */}
       {selectedNode && (
-        <div style={{ width: '300px', borderLeft: '1px solid #333' }}>
-          <FlowEditor selectedNode={selectedNode} onUpdate={updateNodeData} onClose={() => setSelectedNode(null)} />
+        <div style={{ width: '300px', background: '#1c1c1f', borderLeft: '1px solid #333', flexShrink: 0 }}>
+          <FlowEditor 
+            selectedNode={selectedNode} 
+            onUpdate={updateNodeData} 
+            onClose={() => setSelectedNode(null)} 
+          />
         </div>
       )}
     </div>
   );
 }
 
-const btnStyle = { background: '#333', color: 'white', border: 'none', padding: '10px', width: '100%', marginBottom: '10px', cursor: 'pointer' };
+const btnStyle = { background: '#333', color: 'white', border: 'none', padding: '10px', width: '100%', marginBottom: '10px', cursor: 'pointer', borderRadius: '4px' };
