@@ -42,6 +42,19 @@ export default function FlowEditor({ node, onUpdate, onClose }) {
     </div>
   );
 }
+// Dentro del render del FlowEditor.js
+<div style={{ marginTop: '15px', borderTop: '1px solid #333', paddingTop: '10px' }}>
+  <label style={{ fontSize: '12px', color: '#a1a1aa' }}>Segundos de espera antes de enviar:</label>
+  <input
+    type="number"
+    min="0"
+    max="60"
+    style={{ ...style.input, height: '40px', marginTop: '5px' }}
+    placeholder="Ej: 2"
+    value={node.data.delay || 0}
+    onChange={(e) => handleDataChange('delay', parseInt(e.target.value))}
+  />
+</div>
 
 const style = {
   input: { width: '100%', height: '100px', background: '#18181b', color: 'white', border: '1px solid #333', padding: '10px' },
