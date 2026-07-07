@@ -21,33 +21,21 @@ export default function Dashboard() {
     loadNodes();
   }, []);
 
-  const saveToDb = async () => {
-    await supabase.from('nodos').upsert({ id: 'flow_principal', nodes });
-    alert('Flujo guardado');
-  };
-
   const addNode = (type) => {
-    const newNode = { 
+    setNodes([...nodes, { 
       id: Date.now().toString(), 
       data: { label: type, content: '', delay: 0 }, 
-      position: { x: Math.random() * 250, y: Math.random() * 250 } 
-    };
-    setNodes([...nodes, newNode]);
+      position: { x: Math.random() * 200, y: Math.random() * 200 } 
+    }]);
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#09090b', color: '#f4f4f5' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#09090b', color: '#fff' }}>
       {/* SIDEBAR ÚNICO */}
-      <aside style={{ width: '260px', background: '#0f0f12', padding: '20px', borderRight: '1px solid #27272a' }}>
-        <h2 style={{ fontSize: '18px', marginBottom: '20px' }}>SendyPRO Admin</h2>
-        
-        <button onClick={saveToDb} className="sidebar-btn" style={{ background: '#166534', width: '100%' }}>
-          💾 Guardar en DB
-        </button>
-        
-        <h4 style={{ color: '#52525b', fontSize: '11px', textTransform: 'uppercase', marginTop: '30px' }}>AGREGAR NODO</h4>
+      <aside style={{ width: '260px', background: '#0f0f12', borderRight: '1px solid #27272a', padding: '20px' }}>
+        <h2 style={{ fontSize: '16px' }}>SendyPRO Admin</h2>
         {['Texto', 'Imagen', 'Audio', 'Video', 'PDF'].map(t => (
-          <button key={t} className="sidebar-btn" onClick={() => addNode(t)} style={{ width: '100%' }}>
+          <button key={t} onClick={() => addNode(t)} className="sidebar-btn">
             + {t}
           </button>
         ))}
@@ -61,9 +49,9 @@ export default function Dashboard() {
         />
       </main>
 
-      {/* EDITOR LATERAL (Solo aparece al seleccionar un nodo) */}
+      {/* EDITOR */}
       {selectedNode && (
-        <aside style={{ width: '350px', background: '#0f0f12', borderLeft: '1px solid #27272a' }}>
+        <aside style={{ width: '300px', background: '#0f0f12', borderLeft: '1px solid #27272a' }}>
           <FlowEditor 
             node={selectedNode} 
             onUpdate={(id, data) => setNodes(nodes.map(n => n.id === id ? { ...n, data } : n))}
