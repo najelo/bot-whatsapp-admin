@@ -2,63 +2,61 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@supabase/supabase-js';
-import FlowEditor from './FlowEditor';
-import { getNodeStyle } from './NodeStyles';
 import 'reactflow/dist/style.css';
 
+// Carga dinámica obligatoria para evitar el error de "Application error"
 const ReactFlow = dynamic(() => import('reactflow'), { ssr: false });
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL, 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function Dashboard() {
   const [nodes, setNodes] = useState([]);
-  const [selectedNode, setSelectedNode] = useState(null);
 
+  // Carga inicial desde Supabase
   useEffect(() => {
-    const loadNodes = async () => {
+    const fetchNodes = async () => {
       const { data } = await supabase.from('nodos').select('*').eq('id', 'flow_principal').single();
       if (data) setNodes(data.nodes || []);
     };
-    loadNodes();
+    fetchNodes();
   }, []);
 
+  // Función para agregar nodos
   const addNode = (type) => {
-    setNodes([...nodes, { 
-      id: Date.now().toString(), 
-      data: { label: type, content: '', delay: 0 }, 
-      position: { x: Math.random() * 200, y: Math.random() * 200 } 
-    }]);
+    const newNode = {
+      id: Date.now().toString(),
+      data: { label: type },
+      position: { x: Math.random() * 400, y: Math.random() * 200 },
+    };
+    setNodes((prev) => [...prev, newNode]);
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#09090b', color: '#fff' }}>
-      {/* SIDEBAR ÚNICO */}
-      <aside style={{ width: '260px', background: '#0f0f12', borderRight: '1px solid #27272a', padding: '20px' }}>
-        <h2 style={{ fontSize: '16px' }}>SendyPRO Admin</h2>
-        {['Texto', 'Imagen', 'Audio', 'Video', 'PDF'].map(t => (
-          <button key={t} onClick={() => addNode(t)} className="sidebar-btn">
-            + {t}
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#09090b' }}>
+      {/* SIDEBAR IZQUIERDO: Menú principal */}
+      <aside style={{ width: '260px', background: '#111', padding: '20px', borderRight: '1px solid #333', color: 'white' }}>
+        <h2>SendyPRO Admin</h2>
+        <div style={{ marginTop: '20px' }}>
+          <button className="sidebar-btn" onClick={() => console.log('Flujos')}>🚀 Flujos (Lienzo)</button>
+          <button className="sidebar-btn" onClick={() => console.log('Pagos')}>💳 Gestión de Pagos</button>
+          <button className="sidebar-btn" onClick={() => console.log('Logs')}>📜 Logs y Errores</button>
+        </div>
+
+        <h4 style={{ marginTop: '40px', color: '#888' }}>AGREGAR NODO</h4>
+        {['Texto', 'Imagen', 'Audio', 'Video', 'PDF'].map(type => (
+          <button key={type} className="sidebar-btn" onClick={() => addNode(type)}>
+            + Nodo {type}
           </button>
         ))}
       </aside>
 
-      {/* LIENZO */}
+      {/* LIENZO CENTRAL */}
       <main style={{ flexGrow: 1, position: 'relative' }}>
-        <ReactFlow 
-          nodes={nodes.map(n => ({ ...n, style: getNodeStyle(n.data.label) }))}
-          onNodeClick={(_, n) => setSelectedNode(n)}
-        />
+        <ReactFlow nodes={nodes} />
       </main>
-
-      {/* EDITOR */}
-      {selectedNode && (
-        <aside style={{ width: '300px', background: '#0f0f12', borderLeft: '1px solid #27272a' }}>
-          <FlowEditor 
-            node={selectedNode} 
-            onUpdate={(id, data) => setNodes(nodes.map(n => n.id === id ? { ...n, data } : n))}
-            onClose={() => setSelectedNode(null)} 
-          />
-        </aside>
-      )}
     </div>
   );
 }
