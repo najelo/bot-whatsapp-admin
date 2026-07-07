@@ -26,7 +26,6 @@ export default function Dashboard() {
     alert('Flujo guardado');
   };
 
-  // ESTA ES LA FUNCIÓN QUE HACE QUE LOS BOTONES FUNCIONEN
   const addNode = (type) => {
     const newNode = { 
       id: Date.now().toString(), 
@@ -38,9 +37,13 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#09090b', color: '#f4f4f5' }}>
+      {/* SIDEBAR ÚNICO */}
       <aside style={{ width: '260px', background: '#0f0f12', padding: '20px', borderRight: '1px solid #27272a' }}>
-        <h2 style={{ fontSize: '18px' }}>SendyPRO Admin</h2>
-        <button onClick={saveToDb} className="sidebar-btn" style={{ background: '#166534', width: '100%' }}>💾 Guardar en DB</button>
+        <h2 style={{ fontSize: '18px', marginBottom: '20px' }}>SendyPRO Admin</h2>
+        
+        <button onClick={saveToDb} className="sidebar-btn" style={{ background: '#166534', width: '100%' }}>
+          💾 Guardar en DB
+        </button>
         
         <h4 style={{ color: '#52525b', fontSize: '11px', textTransform: 'uppercase', marginTop: '30px' }}>AGREGAR NODO</h4>
         {['Texto', 'Imagen', 'Audio', 'Video', 'PDF'].map(t => (
@@ -50,6 +53,7 @@ export default function Dashboard() {
         ))}
       </aside>
 
+      {/* LIENZO */}
       <main style={{ flexGrow: 1, position: 'relative' }}>
         <ReactFlow 
           nodes={nodes.map(n => ({ ...n, style: getNodeStyle(n.data.label) }))}
@@ -57,8 +61,9 @@ export default function Dashboard() {
         />
       </main>
 
+      {/* EDITOR LATERAL (Solo aparece al seleccionar un nodo) */}
       {selectedNode && (
-        <aside style={{ width: '350px' }}>
+        <aside style={{ width: '350px', background: '#0f0f12', borderLeft: '1px solid #27272a' }}>
           <FlowEditor 
             node={selectedNode} 
             onUpdate={(id, data) => setNodes(nodes.map(n => n.id === id ? { ...n, data } : n))}
